@@ -1,0 +1,3622 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://yuzhupeng.top/myblogs/</id>
+    <title>fishyue</title>
+    <updated>2025-05-26T11:43:58.164Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://yuzhupeng.top/myblogs/"/>
+    <link rel="self" href="https://yuzhupeng.top/myblogs/atom.xml"/>
+    <subtitle>由奢入俭难，由俭入奢易</subtitle>
+    <logo>https://yuzhupeng.top/myblogs/images/avatar.png</logo>
+    <icon>https://yuzhupeng.top/myblogs/favicon.ico</icon>
+    <rights>All rights reserved 2025, fishyue</rights>
+    <entry>
+        <title type="html"><![CDATA[SpringBoot性能优化的12个小技巧]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/springboot-xing-neng-you-hua-de-12-ge-xiao-ji-qiao/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/springboot-xing-neng-you-hua-de-12-ge-xiao-ji-qiao/">
+        </link>
+        <updated>2025-05-26T00:48:36.000Z</updated>
+        <content type="html"><![CDATA[<h1 id="springboot性能优化的12个小技巧">[SpringBoot性能优化的12个小技巧]</h1>
+<h2 id="前言">前言</h2>
+<p>不知道你在SpringBoot项目中，有没有遇到过下面这样的代码：</p>
+<pre><code class="language-java">@GetMapping(&quot;/orders&quot;)
+public List&lt;Order&gt; listOrders() {
+    return orderDao.findAll(); 
+}
+</code></pre>
+<p>一次性查询了所有的订单，全表扫描50万数据，导致接口查询性能很差，严重的时候可能会导致OOM问题。</p>
+<p><strong>问题定位</strong>：</p>
+<ul>
+<li>未分页查询</li>
+<li>无缓存机制</li>
+<li>未启用批量处理</li>
+</ul>
+<p>这次事故让我明白：<strong>性能优化必须贯穿开发全流程</strong>。</p>
+<p>今天这篇文章，跟大家一起聊聊SpringBoot优化的12招，希望对你会有所帮助。</p>
+<figure data-type="image" tabindex="1"><img src="https://files.mdnice.com/user/5303/f9081770-66e4-4c3d-93a9-adb099d364aa.png" alt="" loading="lazy"></figure>
+<figure data-type="image" tabindex="2"><img src="https://files.mdnice.com/user/5303/709386c3-f34e-4037-8b8e-64b3627e3d0a.png" alt="" loading="lazy"></figure>
+<h2 id="第1招连接池参数调优">第1招：连接池参数调优</h2>
+<p><strong>问题场景</strong>：<br>
+默认配置导致连接池资源浪费，高并发时出现连接等待</p>
+<p><strong>错误配置</strong>：</p>
+<pre><code class="language-plain">spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 1000 
+      connection-timeout: 30000
+</code></pre>
+<p>数据库连接池的最大连接数，盲目设置过大，连接超时时间设置过长。</p>
+<p><strong>优化方案</strong>：</p>
+<pre><code class="language-plain">spring:
+  datasource:
+    hikari:
+      maximum-pool-size: ${CPU核心数*2} # 动态调整
+      minimum-idle: 5
+      connection-timeout: 3000 # 3秒超时
+      max-lifetime: 1800000 # 30分钟
+      idle-timeout: 600000 # 10分钟空闲释放
+</code></pre>
+<p>数据库连接池的最大连接数，改成根据CPU核心数动态调整。</p>
+<p>将连接超时时间由30000，改成3000。</p>
+<h2 id="第2招jvm内存优化">第2招：JVM内存优化</h2>
+<p><strong>问题场景</strong>：<br>
+频繁Full GC导致服务卡顿</p>
+<p>我们需要优化JVM参数。</p>
+<p><strong>启动参数优化</strong>：</p>
+<pre><code class="language-java">java -jar -Xms4g -Xmx4g 
+-XX:NewRatio=1 
+-XX:+UseG1GC 
+-XX:MaxGCPauseMillis=200 
+-XX:InitiatingHeapOccupancyPercent=35
+-XX:+AlwaysPreTouch
+</code></pre>
+<p>最大堆内存和初始堆内存都设置成了4G。</p>
+<p>-XX:NewRatio=1，设置新生代和老年代各占一半。</p>
+<p>垃圾收集器配置的是G1。</p>
+<p>垃圾回收的最大停顿时间为200毫秒。</p>
+<h2 id="第3招关闭无用组件">第3招：关闭无用组件</h2>
+<p><strong>问题场景</strong>：<br>
+自动装配加载不需要的Bean</p>
+<p><strong>优化方案</strong>：</p>
+<pre><code class="language-plain">@SpringBootApplication(exclude = {
+    DataSourceAutoConfiguration.class,
+    SecurityAutoConfiguration.class
+})
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+</code></pre>
+<p>如果有些功能暂时用不到，可以先排除一下。</p>
+<p>在SpringBoot项目启动的时候，排除了DataSourceAutoConfiguration和SecurityAutoConfiguration配置类的自动装载。</p>
+<h2 id="第4招响应压缩配置">第4招：响应压缩配置</h2>
+<p><strong>问题场景</strong>：<br>
+接口返回JSON数据体积过大</p>
+<p><strong>优化方案</strong>：</p>
+<pre><code class="language-yml">server:
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/json
+    min-response-size: 1024
+</code></pre>
+<p>配置开启响应的压缩。</p>
+<h2 id="第5招请求参数校验">第5招：请求参数校验</h2>
+<p><strong>问题场景</strong>：<br>
+恶意请求导致资源耗尽</p>
+<p><strong>防御代码</strong>：</p>
+<pre><code class="language-java">@GetMapping(&quot;/products&quot;)
+public PageResult&lt;Product&gt; list(
+    @RequestParam @Max(value=100, message=&quot;页大小不能超过100&quot;) int pageSize,
+    @RequestParam @Min(1) int pageNum) {
+    //...
+}
+</code></pre>
+<p>在接口中做好参数校验，可以拦截很多恶意请求。</p>
+<h2 id="第6招异步处理机制">第6招：异步处理机制</h2>
+<p><strong>问题场景</strong>：<br>
+同步处理导致线程阻塞</p>
+<p><strong>优化方案</strong>：</p>
+<pre><code class="language-java">@Async(&quot;taskExecutor&quot;)
+public CompletableFuture&lt;List&lt;Order&gt;&gt; asyncProcess() {
+    return CompletableFuture.completedFuture(heavyProcess());
+}
+
+@Bean(&quot;taskExecutor&quot;)
+public Executor taskExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setCorePoolSize(5);
+    executor.setMaxPoolSize(10);
+    executor.setQueueCapacity(500);
+    return executor;
+}
+</code></pre>
+<p>在有些业务逻辑中，使用异步处理性能可能会更好。</p>
+<h2 id="第7招使用缓存">第7招：使用缓存</h2>
+<p>使用缓存可以提升效率。</p>
+<p><strong>缓存架构</strong>：</p>
+<figure data-type="image" tabindex="3"><img src="https://files.mdnice.com/user/5303/cfb5177c-5ea0-41d5-be16-cf6eca8766ce.png" alt="" loading="lazy"></figure>
+<p><strong>代码实现</strong>：</p>
+<pre><code class="language-java">@Cacheable(cacheNames = &quot;products&quot;, key = &quot;#id&quot;, 
+           cacheManager = &quot;caffeineCacheManager&quot;)
+public Product getDetail(Long id) {
+    return productDao.getById(id);
+}
+</code></pre>
+<p>这里使用了内存缓存。</p>
+<h2 id="第8招批量操作优化">第8招：批量操作优化</h2>
+<p><strong>问题场景</strong>：<br>
+逐条插入导致性能低下</p>
+<p><strong>优化方案</strong>：</p>
+<pre><code class="language-java">@Transactional
+public void batchInsert(List&lt;Product&gt; products) {
+    jdbcTemplate.batchUpdate(
+        &quot;INSERT INTO product(name,price) VALUES(?,?)&quot;,
+        products,
+        500, // 每批数量
+        (ps, product) -&gt; {
+            ps.setString(1, product.getName());
+            ps.setBigDecimal(2, product.getPrice());
+        });
+}
+</code></pre>
+<p>每500条数据插入一次数据库。</p>
+<h2 id="第9招索引深度优化">第9招：索引深度优化</h2>
+<p><strong>问题场景</strong>：<br>
+慢查询日志频繁出现全表扫描，SQL执行时间波动大</p>
+<p><strong>错误案例</strong>：</p>
+<pre><code class="language-sql">-- 商品表结构
+CREATE TABLE products (
+    id BIGINT PRIMARY KEY,
+    name VARCHAR(200),
+    category VARCHAR(50),
+    price DECIMAL(10,2),
+    create_time DATETIME
+);
+
+-- 低效查询
+SELECT * FROM products 
+WHERE category = '手机' 
+AND price &gt; 5000 
+ORDER BY create_time DESC;
+</code></pre>
+<p><strong>问题分析</strong>：</p>
+<figure data-type="image" tabindex="4"><img src="https://files.mdnice.com/user/5303/e5692dec-6dd6-4abd-b76a-958d12a62713.png" alt="" loading="lazy"></figure>
+<h3 id="优化方案一联合索引设计">优化方案一：联合索引设计</h3>
+<p><strong>索引创建</strong>：</p>
+<p>下面创建了一个分类ID，单价和时间的联合索引：</p>
+<pre><code class="language-sql">ALTER TABLE products 
+ADD INDEX idx_category_price_create 
+(category, price, create_time);
+</code></pre>
+<h3 id="优化方案二覆盖索引优化">优化方案二：覆盖索引优化</h3>
+<p><strong>查询改造</strong>：</p>
+<p>只查询索引包含字段：</p>
+<pre><code class="language-sql">SELECT id, category, price, create_time 
+FROM products 
+WHERE category = '手机' 
+AND price &gt; 5000 
+ORDER BY create_time DESC;
+</code></pre>
+<p>这里使用了覆盖索引。</p>
+<h3 id="优化方案三索引失效预防">优化方案三：索引失效预防</h3>
+<p><strong>常见失效场景</strong>：</p>
+<figure data-type="image" tabindex="5"><img src="https://files.mdnice.com/user/5303/b8482c5a-131d-4df0-aabe-9001af58209f.png" alt="" loading="lazy"></figure>
+<p><strong>案例修复</strong>：</p>
+<p>错误写法：</p>
+<pre><code class="language-sql">SELECT * FROM products 
+WHERE DATE(create_time) = '2023-01-01';
+</code></pre>
+<p>正确写法：</p>
+<pre><code class="language-sql">SELECT * FROM products 
+WHERE create_time BETWEEN '2023-01-01 00:00:00' 
+AND '2023-01-01 23:59:59';
+</code></pre>
+<p>查询时间范围，这里使用了BETWEEN AND关键字，代替了等于号。</p>
+<h3 id="优化方案四索引监控分析">优化方案四：索引监控分析</h3>
+<p><strong>诊断命令</strong>：</p>
+<p>查看索引使用情况：</p>
+<pre><code class="language-sql">SELECT 
+    index_name,
+    rows_read,
+    rows_selected 
+FROM 
+    sys.schema_index_statistics 
+WHERE 
+    table_name = 'products';
+</code></pre>
+<p>分析索引效率：</p>
+<pre><code class="language-javascript">EXPLAIN FORMAT=JSON 
+SELECT ...;
+</code></pre>
+<h3 id="索引优化黄金三原则">索引优化黄金三原则</h3>
+<ol>
+<li><strong>最左前缀原则</strong>：联合索引的第一个字段必须出现在查询条件中</li>
+<li><strong>短索引原则</strong>：整型字段优先，字符串字段使用前缀索引</li>
+<li><strong>适度索引原则</strong>：单个表索引数量不超过5个，总索引长度不超过表数据量30%</li>
+</ol>
+<p><strong>DBA工具箱</strong></p>
+<ul>
+<li>索引分析脚本</li>
+<li>执行计划可视化工具</li>
+<li>索引碎片检测工具</li>
+</ul>
+<h2 id="第10招自定义线程池">第10招：自定义线程池</h2>
+<p><strong>问题场景</strong>：<br>
+默认线程池导致资源竞争</p>
+<p><strong>优化方案</strong>：</p>
+<pre><code class="language-java">@Bean(&quot;customPool&quot;)
+public Executor customThreadPool() {
+    return new ThreadPoolExecutor(
+        10, // 核心线程
+        50, // 最大线程
+        60, TimeUnit.SECONDS,
+        new LinkedBlockingQueue&lt;&gt;(1000),
+        new CustomThreadFactory(),
+        new ThreadPoolExecutor.CallerRunsPolicy());
+}
+</code></pre>
+<p>在高并发业务场景中，使用Executors类创建默认的线程池，可能会导致OOM问题。</p>
+<p>因此，我们需要自定义线程池。</p>
+<h2 id="第11招熔断限流策略">第11招：熔断限流策略</h2>
+<p><strong>问题场景</strong>：<br>
+突发流量导致服务雪崩</p>
+<p><strong>解决方案</strong>：</p>
+<pre><code class="language-java">// 使用Sentinel实现接口限流
+@SentinelResource(value = &quot;orderQuery&quot;, 
+                  blockHandler = &quot;handleBlock&quot;,
+                  fallback = &quot;handleFallback&quot;)
+@GetMapping(&quot;/orders/{id}&quot;)
+public Order getOrder(@PathVariable Long id) {
+    return orderService.getById(id);
+}
+
+// 限流处理
+public Order handleBlock(Long id, BlockException ex) {
+    throw new RuntimeException(&quot;服务繁忙，请稍后重试&quot;);
+}
+
+// 降级处理
+public Order handleFallback(Long id, Throwable t) {
+    return Order.getDefaultOrder();
+}
+</code></pre>
+<p>为了解决重复流量导致服务雪崩的问题，我们需要增加接口熔断、限流和降级处理。</p>
+<h2 id="第12招全链路监控体系">第12招：全链路监控体系</h2>
+<p><strong>问题场景</strong>：<br>
+线上问题定位困难，缺乏数据支撑</p>
+<p>我们需要增加项目全链路的监控。</p>
+<p><strong>监控方案</strong>：</p>
+<pre><code class="language-yml"># SpringBoot配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: &quot;*&quot;
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+</code></pre>
+<p>这里使用了prometheus监控。</p>
+<p><strong>监控架构</strong>：</p>
+<figure data-type="image" tabindex="6"><img src="https://files.mdnice.com/user/5303/ca6fade8-994a-4646-9dcc-945bdfe896b6.png" alt="" loading="lazy"></figure>
+<p><strong>核心监控指标</strong>：</p>
+<figure data-type="image" tabindex="7"><img src="https://files.mdnice.com/user/5303/62344f6d-459e-40c3-9871-2646d705927c.png" alt="" loading="lazy"></figure>
+<h2 id="总结">总结</h2>
+<h3 id="springboot性能优化检查清单">SpringBoot性能优化检查清单</h3>
+<ul>
+<li>连接池参数按业务调整</li>
+<li>JVM参数经过压测验证</li>
+<li>所有查询走缓存机制</li>
+<li>批量操作替代逐条处理</li>
+<li>线程池按场景定制</li>
+<li>全链路监控覆盖</li>
+</ul>
+<figure data-type="image" tabindex="8"><img src="https://files.mdnice.com/user/5303/a9f579bd-cb69-4cd6-b2ee-ac7a9cf71407.png" alt="" loading="lazy"></figure>
+<p><strong>三条黄金法则</strong>：</p>
+<ol>
+<li><strong>预防性优化</strong>：编码时考虑性能影响</li>
+<li><strong>数据驱动</strong>：用监控指标指导优化方向</li>
+<li><strong>持续迭代</strong>：性能优化是持续过程</li>
+</ol>
+<p><strong>性能工具包</strong></p>
+<ul>
+<li>Arthas在线诊断</li>
+<li>JProfiler性能分析</li>
+<li>Prometheus监控体系</li>
+</ul>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[如何编写大语言模型的prompt]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/ru-he-bian-xie-da-yu-yan-mo-xing-de-prompt/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/ru-he-bian-xie-da-yu-yan-mo-xing-de-prompt/">
+        </link>
+        <updated>2025-05-21T09:32:33.000Z</updated>
+        <content type="html"><![CDATA[<hr>
+<p>title: 我的大语言模型课</p>
+<p>description: 关于如何编写大语言模型的prompt的一系列课</p>
+<hr>
+<ul>
+<li><a href="#%E5%89%8D%E8%A8%80">前言</a></li>
+<li><a href="#%E6%80%8E%E6%A0%B7%E4%BD%BF%E7%94%A8%E8%BF%99%E4%B8%AA%E7%B3%BB%E5%88%97%E8%AF%BE%E7%A8%8B">怎样使用这个系列课程</a></li>
+<li><a href="#%E7%AC%AC%E4%B8%80%E7%AB%A0-prompt%E7%9A%84%E5%9F%BA%E7%A1%80">第一章 prompt的基础</a>
+<ul>
+<li><a href="#prompt%E5%8E%9F%E7%90%86">Prompt原理</a></li>
+<li><a href="#%E5%8E%9F%E5%88%991-%E6%B8%85%E6%99%B0%E6%98%8E%E7%A1%AE%E7%9A%84%E6%8C%87%E4%BB%A4">原则1: 清晰明确的指令</a>
+<ul>
+<li><a href="#%E7%AD%96%E7%95%A51%E4%BD%BF%E7%94%A8%E5%88%86%E9%9A%94%E7%AC%A6%E6%B8%85%E6%99%B0%E5%9C%B0%E6%8C%87%E7%A4%BA%E8%BE%93%E5%85%A5%E7%9A%84%E4%B8%8D%E5%90%8C%E9%83%A8%E5%88%86">策略1：使用分隔符清晰地指示输入的不同部分</a></li>
+<li><a href="#%E7%AD%96%E7%95%A52-%E8%A6%81%E6%B1%82%E7%BB%93%E6%9E%84%E5%8C%96%E7%9A%84%E8%BE%93%E5%87%BA">策略2: 要求结构化的输出</a></li>
+<li><a href="#%E7%AD%96%E7%95%A53-%E8%A6%81%E6%B1%82%E6%A8%A1%E5%9E%8B%E6%A3%80%E6%9F%A5%E6%9D%A1%E4%BB%B6%E6%98%AF%E5%90%A6%E6%BB%A1%E8%B6%B3">策略3: 要求模型检查条件是否满足</a></li>
+<li><a href="#%E7%AD%96%E7%95%A54-%E5%B0%8F%E6%A0%B7%E6%9C%AC%E6%8F%90%E7%A4%BA">策略4： “小样本”提示</a></li>
+</ul>
+</li>
+<li><a href="#%E5%8E%9F%E5%88%992%E6%8C%87%E5%AF%BC%E6%A8%A1%E5%9E%8B%E6%80%9D%E8%80%83%E4%B8%80%E6%AD%A5%E4%B8%80%E6%AD%A5%E8%A7%A3%E5%86%B3%E9%97%AE%E9%A2%98">原则2：指导模型思考一步一步解决问题</a>
+<ul>
+<li><a href="#%E7%AD%96%E7%95%A51%E6%8C%87%E5%AE%9A%E5%AE%8C%E6%88%90%E4%BB%BB%E5%8A%A1%E6%89%80%E9%9C%80%E7%9A%84%E6%AD%A5%E9%AA%A4">策略1：指定完成任务所需的步骤</a></li>
+<li><a href="#%E7%AD%96%E7%95%A52-%E8%A6%81%E6%B1%82%E6%A8%A1%E5%9E%8B%E6%8C%89%E6%8C%87%E5%AE%9A%E7%9A%84%E6%A0%BC%E5%BC%8F%E8%BE%93%E5%87%BA">策略2: 要求模型按指定的格式输出</a></li>
+<li><a href="#%E7%AD%96%E7%95%A53%E6%8C%87%E7%A4%BA%E6%A8%A1%E5%9E%8B%E8%87%AA%E5%B7%B1%E8%A7%A3%E5%86%B3%E9%97%AE%E9%A2%98">策略3：指示模型自己解决问题</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#%E6%A8%A1%E5%9E%8B%E9%99%90%E5%88%B6%E5%B9%BB%E8%A7%89">模型限制：幻觉</a></li>
+<li><a href="#%E5%85%B6%E4%BB%96%E7%BB%8F%E9%AA%8C">其他经验</a></li>
+<li><a href="#%E7%AC%AC%E4%BA%8C%E7%AB%A0-%E8%BF%AD%E4%BB%A3%E4%BC%98%E5%8C%96%E4%BD%A0%E7%9A%84prompt">第二章 迭代优化你的prompt</a></li>
+<li><a href="#%E7%AC%AC%E4%B8%89%E7%AB%A0-%E6%96%87%E6%9C%AC%E6%B1%87%E6%80%BB%E6%A6%82%E6%8B%AC">第三章 文本汇总概括</a>
+<ul>
+<li><a href="#%E7%94%A8%E4%B8%80%E4%B8%AA%E5%8F%A5%E5%AD%90%E8%AF%8D%E5%AD%97%E7%AC%A6%E7%9A%84%E9%99%90%E5%88%B6%E6%A6%82%E6%8B%AC%E5%86%85%E5%AE%B9">用一个句子/词/字符的限制概括内容</a></li>
+<li><a href="#%E4%BB%A5%E8%BF%90%E8%BE%93%E5%92%8C%E4%BA%A4%E4%BB%98%E4%B8%BA%E9%87%8D%E7%82%B9%E8%BF%9B%E8%A1%8C%E6%80%BB%E7%BB%93">以运输和交付为重点进行总结</a></li>
+<li><a href="#%E4%BB%A5%E4%BB%B7%E6%A0%BC%E5%92%8C%E4%BB%B7%E5%80%BC%E6%84%9F%E4%B8%BA%E9%87%8D%E7%82%B9%E8%BF%9B%E8%A1%8C%E6%80%BB%E7%BB%93">以价格和价值感为重点进行总结</a></li>
+<li><a href="#%E7%94%A8%E6%8F%90%E5%8F%96%E6%9D%A5%E6%9B%BF%E4%BB%A3%E6%80%BB%E7%BB%93">用“提取”来替代“总结”</a></li>
+</ul>
+</li>
+<li><a href="#%E7%AC%AC%E5%9B%9B%E7%AB%A0-%E6%8E%A8%E7%90%86%E6%96%87%E6%9C%AC%E7%9A%84%E7%B1%BB%E5%9E%8B">第四章 推理文本的类型</a>
+<ul>
+<li><a href="#%E8%AF%86%E5%88%AB%E6%83%85%E6%84%9F%E7%B1%BB%E5%9E%8B">识别情感类型</a></li>
+<li><a href="#%E8%AF%86%E5%88%AB%E6%84%A4%E6%80%92">识别愤怒</a></li>
+<li><a href="#%E6%8F%90%E5%8F%96%E5%AE%A2%E6%88%B7%E8%AF%84%E8%AE%BA%E4%B8%AD%E7%9A%84%E4%BA%A7%E5%93%81%E5%92%8C%E5%85%AC%E5%8F%B8%E5%90%8D%E7%A7%B0">提取客户评论中的产品和公司名称</a></li>
+<li><a href="#%E5%90%8C%E6%97%B6%E5%81%9A%E5%A4%9A%E9%A1%B9%E4%BB%BB%E5%8A%A1">同时做多项任务</a></li>
+<li><a href="#%E4%B8%BB%E9%A2%98%E6%8E%A8%E6%96%AD">主题推断</a></li>
+<li><a href="#%E5%88%B6%E4%BD%9C%E7%89%B9%E5%AE%9A%E4%B8%BB%E9%A2%98%E7%9A%84%E6%96%B0%E9%97%BB%E5%88%A4%E6%96%AD">制作特定主题的新闻判断</a></li>
+</ul>
+</li>
+<li><a href="#%E7%AC%AC%E4%BA%94%E7%AB%A0-%E8%87%AA%E7%84%B6%E8%AF%AD%E8%A8%80">第五章 自然语言</a>
+<ul>
+<li><a href="#%E7%BF%BB%E8%AF%91">翻译</a>
+<ul>
+<li><a href="#%E4%BE%8B1-%E7%AE%80%E5%8D%95%E7%9A%84%E7%BF%BB%E8%AF%91">例1 简单的翻译</a></li>
+<li><a href="#%E4%BE%8B2--%E7%BF%BB%E8%AF%91%E4%B8%BA%E5%A4%9A%E8%AF%AD%E8%A8%80">例2  翻译为多语言</a></li>
+</ul>
+</li>
+<li><a href="#%E4%BE%8B3-%E8%AF%86%E5%88%AB%E8%AF%AD%E7%A7%8D">例3 识别语种</a></li>
+<li><a href="#%E8%BD%AC%E6%8D%A2%E8%AF%AD%E6%B0%94">转换语气</a>
+<ul>
+<li><a href="#%E4%BE%8B1-%E8%BD%AC%E6%8D%A2%E4%B8%BA%E6%AD%A3%E5%BC%8F%E7%94%A8%E8%AF%AD">例1 转换为正式用语</a></li>
+</ul>
+</li>
+<li><a href="#%E6%8B%BC%E5%86%99%E6%A3%80%E6%9F%A5%E8%AF%AD%E6%B3%95%E6%A3%80%E6%9F%A5">拼写检查/语法检查</a>
+<ul>
+<li><a href="#%E4%BE%8B-%E6%A3%80%E6%9F%A5%E8%AF%AD%E6%B3%95%E7%BB%99%E5%87%BA%E7%BA%A0%E6%AD%A3%E7%89%88%E6%9C%AC">例 检查语法给出纠正版本</a></li>
+</ul>
+</li>
+<li><a href="#%E6%88%91%E7%9A%84%E7%BB%8F%E9%AA%8C">我的经验</a>
+<ul>
+<li><a href="#%E4%BE%8B">例</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#%E7%AC%AC%E5%85%AD%E7%AB%A0-%E6%96%87%E6%9C%AC%E5%86%85%E5%AE%B9%E7%94%9F%E6%88%90">第六章 文本内容生成</a>
+<ul>
+<li><a href="#%E4%BB%8E%E5%AE%A2%E6%88%B7%E8%AF%84%E8%AE%BA%E4%B8%AD%E7%94%9F%E6%88%90%E4%B8%80%E5%B0%81%E7%94%B5%E5%AD%90%E9%82%AE%E4%BB%B6">从客户评论中生成一封电子邮件</a>
+<ul>
+<li><a href="#%E4%BE%8B-%E4%BB%8E%E5%AE%A2%E6%88%B7%E8%AF%84%E8%AE%BA%E7%94%9F%E6%88%90%E7%94%B5%E5%AD%90%E9%82%AE%E4%BB%B6">例 从客户评论生成电子邮件</a></li>
+<li><a href="#%E6%8F%90%E9%86%92%E6%A8%A1%E5%9E%8B%E4%BD%BF%E7%94%A8%E5%AE%A2%E6%88%B7%E7%94%B5%E5%AD%90%E9%82%AE%E4%BB%B6%E4%B8%AD%E7%9A%84%E7%BB%86%E8%8A%82">提醒模型使用客户电子邮件中的细节</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#%E7%AC%AC%E4%B8%83%E7%AB%A0-%E8%81%8A%E5%A4%A9%E6%9C%BA%E5%99%A8%E4%BA%BAchatbot">第七章 聊天机器人（chatbot）</a></li>
+<li><a href="#%E7%AC%AC%E5%85%AB%E7%AB%A0--%E5%A4%A7%E8%AF%AD%E8%A8%80%E6%A8%A1%E5%9E%8B%E7%9A%84%E5%9F%BA%E6%9C%AC%E5%8E%9F%E7%90%86%E6%9C%AA%E5%AE%8C%E6%88%90">第八章  大语言模型的基本原理（未完成）</a></li>
+<li><a href="#%E7%AC%AC%E4%B9%9D%E7%AB%A0-prompt%E6%A1%86%E6%9E%B6%E6%AD%A3%E5%9C%A8%E6%9B%B4%E6%96%B0%E4%B8%AD">第九章 Prompt框架（正在更新中）</a>
+<ul>
+<li><a href="#crispe--%E6%A1%86%E6%9E%B6">CRISPE  框架</a></li>
+<li><a href="#%E5%9B%BE%E7%81%B5%E6%9C%BA%E5%BC%8F%E7%9A%84%E6%A1%86%E6%9E%B6">图灵机式的框架</a></li>
+</ul>
+</li>
+<li><a href="#%E7%AC%AC%E5%8D%81%E7%AB%A0-%E6%80%BB%E7%BB%93">第十章 总结</a></li>
+<li><a href="#%E7%AC%AC%E5%8D%81%E4%B8%80%E7%AB%A0-prompt-engineering-%E7%9A%84%E7%BB%83%E4%B9%A0">第十一章 Prompt Engineering 的练习</a></li>
+<li><a href="#%E9%99%84%E5%BD%951-%E8%AF%BE%E7%A8%8B%E6%A1%86%E6%9E%B6">附录1 课程框架</a></li>
+<li><a href="#%E5%B7%A5%E5%85%B7%E9%93%BE%E5%BE%85%E6%9B%B4%E6%96%B0">工具链（待更新）</a></li>
+<li><a href="#%E5%8F%82%E8%80%83">参考</a></li>
+<li><a href="#about-me">About Me</a></li>
+</ul>
+<h1 id="前言">前言</h1>
+<figure data-type="image" tabindex="1"><img src="./images/image-20240422214801198.png" alt="image-20240422214801198" loading="lazy"></figure>
+<p>但是现阶段想要用他还有些难度， 需要学习如何写好提示词， 这门新兴的学问就叫提示词工程，英文为prompt engineering 。</p>
+<p>阅读学习这门课程，不需要你有任何理工科的背景。  但是需要你有点耐心， 跟着把文中提到的示例都去练习一遍。</p>
+<p>本文并非全部是原创， 参考<a href="https://learn.deeplearning.ai/courses/chatgpt-prompt-eng/lesson/1/introduction">chatGpt提示词课程</a>， 文中大量使用的案例都来源这个课程，  英文不错的同学， 推荐去认真学习这门课， 如果只需要快速过一遍， 本文希望能对你有帮助。</p>
+<p>本文包括的内容：</p>
+<ul>
+<li>prompt 原理</li>
+<li>prompt 技巧</li>
+<li>我的一些经验</li>
+<li>一些公开的prompt模板</li>
+<li>AI工具系列</li>
+</ul>
+<p>本系列课程不需要任何理工科基础， 很适合没有技术背景的读者们阅读。</p>
+<p><strong>此外， 我希望在使用本文的内容的时候， 请注明出处和作者。</strong></p>
+<p>Good Luck！</p>
+<h1 id="怎样使用这个系列课程">怎样使用这个系列课程</h1>
+<p>第一章到第五章 都在围绕基础原理，可以认为是prompt engineer 的第一性原理。    如果您不是这方面的专家， 我建议你先把前五章吃透。</p>
+<p>至于其他内容， 主要是看您的兴趣， 不学习也不会有什么影响。</p>
+<p>第八章框架篇， 我建议要看看， 这能帮你提升编写prompt的效率。</p>
+<h1 id="第一章-prompt的基础">第一章 prompt的基础</h1>
+<h2 id="prompt原理">Prompt原理</h2>
+<blockquote>
+<p>理解并掌握这些原则， 你可以完成大多数的和大语言模型协同工作。</p>
+</blockquote>
+<ul>
+<li>
+<p><strong>原则1：编写清晰明确的指示</strong></p>
+<ul>
+<li>
+<p>策略1：使用分隔符清晰地指示输入的不同部分</p>
+<blockquote>
+<p>指令包含引用的内容， 有利于大语言模型区分指令和背景信息。</p>
+</blockquote>
+</li>
+<li>
+<p>策略2：要求结构化的输出</p>
+<blockquote>
+<p>你可以大语言模型生成你想要的格式的数据， 比如csv格式（一种类似于excel的数据形式），json， html 。 你也可以用大语言模型处理小批量的数据，比如求和或求平均值等等。</p>
+</blockquote>
+</li>
+<li>
+<p>策略3：要求模型检查条件是否满足</p>
+<blockquote>
+<p>可以用作对内容的条件判断</p>
+</blockquote>
+</li>
+<li>
+<p>策略4： &quot;少样本&quot;提示</p>
+<blockquote>
+<p>通过给模型提供一些样例， 让模型更好的理解你要完成的任务。</p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>原则2：给模型一定时间“思考”</strong></p>
+<ul>
+<li>
+<p>策略1：具体指定完成任务所需的步骤</p>
+<blockquote>
+<p>指示模型的思考或完成任务的路径， 就像你在指导一个实习生完成任务所需要的步骤一样。</p>
+</blockquote>
+</li>
+<li>
+<p>策略2：在匆忙得出结论之前，指导模型自己解决问题</p>
+<blockquote>
+<p>不要让模型直接给出答案， 而让大语言模型通过思考自己解决问题。</p>
+</blockquote>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="原则1-清晰明确的指令">原则1: 清晰明确的指令</h2>
+<blockquote>
+<p>清晰明确的指令并不意味着写短句子， 在实践中， 简单句比长句子更容易表达。 使用英文的表达方法更容易被模型辩识。</p>
+</blockquote>
+<h3 id="策略1使用分隔符清晰地指示输入的不同部分">策略1：使用分隔符清晰地指示输入的不同部分</h3>
+<ul>
+<li>编写清晰具体的指令，指示模型去做什么。 引导模型朝着期望的方向输出内容。</li>
+<li>清晰的提示不是简短的提示。 在许多情况下， 更长的提示为模型提供了更多的清晰度和背景， 会让模型有更详细的输出相关的内容。</li>
+</ul>
+<p><strong>最佳实践</strong>： 用分割符将文本和指令有效地区分， 让模型更容易识别指令和文本。</p>
+<p>常用的分割符有：</p>
+<pre><code>三个引号： &quot;&quot;&quot; {text} &quot;&quot;&quot;
+三个反引号：  ``` {text} ```
+三个连字符： --- {text} ---
+尖括号: &lt; {text} &gt;
+xml 标记： &lt;tag&gt; {text} &lt;/tag&gt; 
+</code></pre>
+<blockquote>
+<p>其中{text} 是文本的内容</p>
+</blockquote>
+<p>指令示例：</p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>---
+你应该通过提供尽可能清晰和具体的指示来表达你想让模型做什么。这将引导模型朝着期望的输出方向发展，并减少收到无关或不正确响应的可能性。不要把清晰的提示与简短的提示混淆。在许多情况下，更长的提示为模型提供了更多的清晰度和背景信息，这可能导致更详细和相关的输出。
+---
+概括由3个连字符分割符中的内容，将其变为一个句子。
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>内容概括：提供清晰、具体的指示有助于引导模型朝着期望的输出方向发展，减少无关或不正确响应的可能性。
+</code></pre>
+<blockquote>
+<p>我的经验</p>
+</blockquote>
+<pre><code>- 短句或短语比长句子更优
+- 祈使句更好
+- 类英文的表达理解更好
+- 使用的词汇越具体越好
+
+</code></pre>
+<h3 id="策略2-要求结构化的输出">策略2: 要求结构化的输出</h3>
+<p>要求模型输出html、json、csv等等结化的形式输出。</p>
+<p><strong>例: 输出一个csv格式的文本</strong></p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>生成三本虚构书籍的标题，作者和类型，并以csv格式提供，包含以下键：book_id，title，author，genre。
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>book_id,title,author,genre
+1,The Whispering Woods,Margaret Rivers,Fantasy
+2,Echoes of Eternity,Lucas Stone,Mystery
+3,Stars of Serenity,Isabel Frost,Science Fiction
+
+</code></pre>
+<p><strong>例: 输出一个json格式的文本</strong></p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>生成三本虚构书籍的标题，作者和类型，并以json格式提供，包含以下键：book_id，title，author，genre。
+</code></pre>
+<p>json是在软件开发常用一种数据组织形式。</p>
+<p>输出</p>
+<pre><code class="language-json">[
+  {
+    &quot;book_id&quot;: 1,
+    &quot;title&quot;: &quot;The Secret Garden&quot;,
+    &quot;author&quot;: &quot;Frances Hodgson Burnett&quot;,
+    &quot;genre&quot;: &quot;Children's Literature&quot;
+  },
+  {
+    &quot;book_id&quot;: 2,
+    &quot;title&quot;: &quot;The Martian&quot;,
+    &quot;author&quot;: &quot;Andy Weir&quot;,
+    &quot;genre&quot;: &quot;Science Fiction&quot;
+  },
+  {
+    &quot;book_id&quot;: 3,
+    &quot;title&quot;: &quot;Murder on the Orient Express&quot;,
+    &quot;author&quot;: &quot;Agatha Christie&quot;,
+    &quot;genre&quot;: &quot;Mystery&quot;
+  }
+]
+
+</code></pre>
+<h3 id="策略3-要求模型检查条件是否满足">策略3: 要求模型检查条件是否满足</h3>
+<p>检查完成任务的所需的条件是否满足</p>
+<p><strong>例：检查内容是否包含一系列指示</strong></p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>提供的文本将用三个引号括起来。如果它包含一系列的指示，那么请按以下格式重新编写这些指示：
+
+步骤1 - ...
+步骤2 - …
+…
+步骤N - …
+
+如果文本中不包含一系列的指示，则简单地写上 &quot;未提供步骤&quot;
+'''
+泡一杯茶很简单！首先，你需要把一些水烧开。在此期间，拿一个杯子并放入一个茶包。一旦水足够热，只需将其倒在茶包上。让茶浸泡一会儿。几分钟后，取出茶包。如果喜欢，可以加入一些糖或牛奶调味。就是这样！你可以享受一杯美味的茶了。
+'''
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>步骤1 - 泡一杯茶很简单！首先，你需要把一些水烧开。
+步骤2 - 在此期间，拿一个杯子并放入一个茶包。
+步骤3 - 一旦水足够热，只需将其倒在茶包上。
+步骤4 - 让茶浸泡一会儿。
+步骤5 - 几分钟后，取出茶包。
+步骤6 - 如果喜欢，可以加入一些糖或牛奶调味。
+步骤7 - 就是这样！你可以享受一杯美味的茶了。
+</code></pre>
+<p>值得注意的是， 输出的内容并不总是完全一致， 这是一个难点， 很多开发者都非常的苦脑， 不能获得确定的输出， 会让程序的逻辑无法正确的运行下去。</p>
+<p><strong>例： 检查条件不满足的情况</strong></p>
+<p>可以指令中增加一个条件检查或判断</p>
+<blockquote>
+<p>prompt</p>
+<p>这个例子中的文本不满足包含的一系列指示(instruction)</p>
+</blockquote>
+<pre><code>供的文本将用三个引号括起来。如果它包含一系列的指示，那么请按以下格式重新编写这些指示：
+
+步骤1 - ...
+步骤2 - …
+…
+步骤N - …
+
+如果文本中不包含一系列的指示，则简单地写上 &quot;未提供步骤&quot;
+'''
+今天阳光明媚，鸟儿在歌唱。今天是个美好的日子，适合去公园散步。花儿盛开，树木在微风中轻轻摇曳。人们外出享受着宜人的天气。一些人在野餐，而其他人则在玩游戏或者简单地躺在草地上放松。这是一个完美的日子，可以在户外享受并欣赏大自然的美丽。
+'''
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>未提供步骤
+</code></pre>
+<figure data-type="image" tabindex="2"><img src="./images/image_20240325181636964.png" alt="image_20240325181636964" loading="lazy"></figure>
+<h3 id="策略4-小样本提示">策略4： “小样本”提示</h3>
+<p>给模型举一个正确的或成功的例子。 然后让模型执行任务。</p>
+<p>例： 和示例风格保持一致风格的回答</p>
+<blockquote>
+<p>prompt</p>
+<p>给出如下风格的例子</p>
+</blockquote>
+<pre><code>你的任务是以下面的一致的格式回答
+
+&lt;child&gt;: 教我耐心。
+
+&lt;grandparent&gt;: 雕刻最深峡谷的河流源自一处不起眼的泉水；最宏伟的交响乐始于一声孤独的音符；最复杂的织锦始于一根孤独的线。 
+
+&lt;child&gt;: 教我韧性。
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>&lt;grandparent&gt;: 最坚固的树木从最强烈的风暴中生长出来；最坚定的人生理由从最艰难的时刻中诞生；最耀眼的钻石经历最高温度和最大压力而成。
+</code></pre>
+<figure data-type="image" tabindex="3"><img src="./images/image_20240323211436741.png" alt="image_20240323211436741" loading="lazy"></figure>
+<p><font color="red"> <strong>小建议</strong> </font></p>
+<blockquote>
+<p>我们在使用chatgpt的时候， 尽可能让一个聊天会话只聊一个主题。 多主题的聊天内容会导致因为上下文的混淆， 让模型给出误导性的答案。 <strong>如果要开启新话题， 就开一个新的会话。</strong></p>
+</blockquote>
+<h2 id="原则2指导模型思考一步一步解决问题">原则2：指导模型思考一步一步解决问题</h2>
+<p>神经网络模型本质上还是一个算概率的活， 因此如果直接让模型给出答案， 他给出的答案可能是过去训练时， 输入了大量错误的答案。</p>
+<p>因此， 因此，大语言模型也会给出概率较高的答案， 但不一定正确的答案。</p>
+<p><strong>不要让模型直接给你答案， 而是把解决问题的方法一步一步拆解开， 指导模型帮最终推导出答案。</strong></p>
+<h3 id="策略1指定完成任务所需的步骤">策略1：指定完成任务所需的步骤</h3>
+<p>步骤1: ...</p>
+<p>步骤2: ...</p>
+<p>步骤3: ...</p>
+<p>...</p>
+<p>步骤N: ...</p>
+<p>step by step</p>
+<p><strong>例： 指示完成一项任务需要步骤</strong></p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>1 - 将下面由三个反引号分隔的文本进行总结，用一句话描述。
+
+2 - 将总结翻译成英语。
+
+3 - 在英语总结中列出每个名字。
+
+4 - 输出一个包含以下键的 JSON 对象：english_summary、num_names。
+
+文本：
+```
+在一个迷人的村庄里，兄弟姐妹杰克和吉尔踏上了从山顶井口取水的探险之旅。当他们欢快地唱着歌攀登时，不幸降临了——杰克在一块石头上绊倒，滚下了山坡，吉尔紧随其后。尽管稍微受了点伤，但他们俩还是安然无恙地回到了家中，得到了慰藉的拥抱。尽管遭遇了不幸，但他们的冒险精神仍然旺盛，他们继续欢快地探索着。
+```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>1. 总结： 
+在一个迷人的村庄里，兄弟姐妹杰克和吉尔在探险途中遭遇了不幸，但最终安全返回家中，他们的探险精神未受影响。  
+2. 英语翻译：  
+In a charming village, siblings Jack and Jill faced misfortune on their adventure but returned home safely, their adventurous spirit undiminished.  
+3. 列出的名字：  
+Jack, Jill  
+4. JSON 对象输出：  
+```json
+{
+  &quot;english_summary&quot;: &quot;In a charming village, siblings Jack and Jill faced misfortune on their adventure but returned home safely, their adventurous spirit undiminished.&quot;,
+  &quot;num_names&quot;: 2
+}
+```
+</code></pre>
+<p><strong>例：地道的英文表达</strong></p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>当心！“友谊是一种精神食品，它无法用钱来购买，也无法用权力来得到。”
+
+1. 翻译为英文
+2. 将翻译的英文改写更地道英语表达
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>1. &quot;Beware! 'Friendship is a spiritual nourishment, it cannot be bought with money, nor obtained with power.'&quot;
+
+2. &quot;Watch out! 'Friendship is like soul food, it can't be purchased with cash or acquired through influence.'&quot;
+</code></pre>
+<h3 id="策略2-要求模型按指定的格式输出">策略2: 要求模型按指定的格式输出</h3>
+<p>prompt</p>
+<pre><code>我们的任务是执行以下操作： 
+1 - 用1句话总结以下，以&lt;&gt;分隔的文本。 
+2 - 将摘要翻译成英语。 
+3 - 在英语摘要中列出每个名字。 
+4 - 输出一个包含以下键的json对象：english_summary，num_names。
+
+使用以下格式:
+Text: &lt;text to summarize&gt;
+Summary: &lt;summary&gt;
+Translation: &lt;summary translation&gt;
+Names: &lt;list of names in summary&gt;
+Output JSON: &lt;json with summary and num_names&gt;
+
+Text: &lt;在一个迷人的村庄里，兄弟姐妹杰克和吉尔踏上了从山顶井口取水的探险之旅。当他们欢快地唱着歌攀登时，不幸降临了——杰克在一块石头上绊倒，滚下了山坡，吉尔紧随其后。尽管稍微受了点伤，但他们俩还是安然无恙地回到了家中，得到了慰藉的拥抱。尽管遭遇了不幸，但他们的冒险精神仍然旺盛，他们继续欢快地探索着。&gt;
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>Text: 在一个迷人的村庄里，兄弟姐妹杰克和吉尔踏上了从山顶井口取水的探险之旅。当他们欢快地唱着歌攀登时，不幸降临了——杰克在一块石头上绊倒，滚下了山坡，吉尔紧随其后。尽管稍微受了点伤，但他们俩还是安然无恙地回到了家中，得到了慰藉的拥抱。尽管遭遇了不幸，但他们的冒险精神仍然旺盛，他们继续欢快地探索着。
+
+Summary: 杰克和吉尔在探险中受伤，但安然无恙地回到家中，并继续他们的冒险精神。
+
+Translation: Jack and Jill got injured during the adventure but safely returned home and continued their adventurous spirit.
+
+Names: Jack, Jill
+
+Output JSON: 
+```json
+{
+  &quot;english_summary&quot;: &quot;Jack and Jill got injured during the adventure but safely returned home and continued their adventurous spirit.&quot;,
+  &quot;num_names&quot;: 2
+}
+```
+</code></pre>
+<h3 id="策略3指示模型自己解决问题">策略3：指示模型自己解决问题</h3>
+<p>在模型草率的得出结论前， 让它自行解决问题。</p>
+<p>有时候需要我们指导模型去自行推理出解决方案， 进而我们会得出很好的结果。</p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>确定学生的解决方案是否正确。
+
+问题：
+我正在建造太阳能发电装置，需要帮助计算财务。
+- 土地每平方英尺100美元
+- 太阳能板每平方英尺250美元
+- 我已经谈好的维护合同每年固定费用10万美元，另外每平方英尺额外费用10美元
+第一年运营的总成本如何，取决于安装面积。
+
+学生的解决方案：
+设 x 为装置的面积（平方英尺）。
+费用：
+1. 土地费用：100x
+2. 太阳能板费用：250x
+3. 维护费用：100,000 + 100x
+总成本：100x + 250x + 100,000 + 100x = 450x + 100,000
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>学生的解决方案基本正确。他们正确地将每项费用与安装面积相关联，并且正确地计算了总成本。因此，解决方案应该是正确的。
+</code></pre>
+<blockquote>
+<p><font color="red" > 注意，学生的解决方案实际上是不正确的。<br>
+我们可以通过指导模型首先解决自己的方案来修正这个问题。</font></p>
+</blockquote>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>你的任务是确定学生的解决方案是否正确。
+要解决此问题，请执行以下操作：
+- 首先，制定自己的问题解决方案，包括最终总数。
+- 然后将您的解决方案与学生的解决方案进行比较 
+并评估学生的解决方案是否正确。
+不要决定学生的解决方案是否正确，直到
+你自己做了这个问题。
+
+使用以下格式：
+问题：
+'''
+{问题在这里}
+'''
+学生解决方案：
+'''
+{学生的解决方案在这里}
+'''
+实际解决方案：
+'''
+{在此处制定解决方案和解决方案的步骤}
+'''
+
+'''
+{是或否}
+'''
+学生答案：
+'''
+{正确或不正确}
+'''
+
+问题：
+'''
+我正在建造一个太阳能装置，我需要帮助解决财务问题。
+- 土地成本 $100 / 平方英尺
+- 我可以以 250 美元/平方英尺的价格购买太阳能电池板
+- 我协商了一份维护合同，每年将花费我 10 万美元，以及额外的 10 美元/平方英尺
+第一年运营的总成本与平方英尺数的函数是多少。
+'''
+学生解决方案：
+'''
+设 x 是安装的大小（以平方英尺为单位）。
+成本：
+1.土地成本：100倍
+2.太阳能电池板成本：250x
+3.维护成本：100,000+100x
+总成本：100x + 250x + 100,000 + 100x = 450x + 100,000
+'''
+实际解决方案：
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>'''
+实际解决方案：
+总成本 = 土地成本 + 电池板成本 + 维护成本
+
+土地成本 = 100 * x （x 为安装的大小，单位：平方英尺）
+电池板成本 = 250 * x
+维护成本 = 100,000（固定部分）+ 10 * x（与安装大小成比例）
+
+总成本 = 100x + 250x + 100,000 + 10x = 360x + 100,000
+'''
+
+学生的解是否与刚才计算的实际解相同：
+'''
+不是
+'''
+
+学生答案：
+'''
+不正确
+'''
+</code></pre>
+<h2 id="模型限制幻觉">模型限制：幻觉</h2>
+<blockquote>
+<p>大语言模型的幻觉就是他会一本正经的胡扯。</p>
+<p>对于模型给出的回答， 你要持批判态度。</p>
+</blockquote>
+<p>大语言模型幻觉是由大型神经网络模型生成的虚假结果。这可能表现为图像、文本或音频中不合理或虚构的信息。了解和处理这些幻觉对确保模型可靠性至关重要。</p>
+<p>LLM 根据给定的输入提示词逐个预测下一个词（也就是标记），从而生成回答。在大多数情况下，模型的输出是与提问相关的，并且完全可用，但是在使用语言模型时需要小心，因为它们给出的回答可能不准确。这种回答通常被称为 AI 幻觉，即 AI 自信地给出回答，但这些回答可能是错误的，或涉及虚构的信息。对于依赖 GPT 的用户来说，AI 幻觉可能带来危险。你需要仔细核对并批判性地审视模型的回答。</p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>请介绍一下 Boie 推出的 AeroGlide UltraSlim 智能牙刷。
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>AeroGlide UltraSlim智能牙刷是Boie推出的一款高科技产品。它采用先进的技术设计，拥有超薄的刷头，可有效清洁牙齿表面和牙缝。此外，它还配备了智能功能，如定时提醒和连接手机应用程序，帮助用户更好地监控和改善口腔健康。这款牙刷的设计简洁时尚，易于使用，是现代生活中口腔护理的理想选择。
+</code></pre>
+<p>Boie不是一个真实存在的公司， 更没有AeroGlide UltraSlim 这款产品。</p>
+<h2 id="其他经验">其他经验</h2>
+<ul>
+<li>chatgpt有记忆能力， 一个会话中，chatgpt会根据上下文提示给出回答
+<ul>
+<li>如果为了不受历史聊天的影响， 最好重新开一个会话</li>
+</ul>
+</li>
+<li>国内模型输出不稳定，对编写prompt难度很大，建议尽可能使用chatgpt或claude或其他大语言模型</li>
+</ul>
+<h1 id="第二章-迭代优化你的prompt">第二章 迭代优化你的prompt</h1>
+<p>第一次编写的 prompt，几乎不可能达到我们的预期。 我们需要对 prompt 迭代几轮， 这样就能达到我们预期。</p>
+<p><strong>需求： 为某产品编写营销文案。</strong></p>
+<pre><code>你的任务是协助市场团队根据技术规格单为零售网站创建产品描述。
+
+根据技术规格单提供的信息编写产品描述，使用三个反引号括起来的内容。
+
+技术规格单：
+```
+概览
+- 属于一系列美丽的中世纪办公家具，包括文件柜、书桌、书架、会议桌等。
+- 多种外壳颜色和底座涂装可选。
+- 提供塑料背部和正面面料（SWC-100）或全面料（SWC-110）选项，有10种布料和6种皮革可选。
+- 底座涂装选项有：不锈钢、哑光黑、光泽白或铬色。
+- 椅子可选择搭配或不搭配扶手。
+- 适用于家庭或商务场所。
+- 合格用于合同使用。
+
+构造
+- 五轮塑料涂层铝制底座。
+- 气动椅高调节，方便升降。
+
+尺寸
+- 宽度 53 厘米 | 20.87 英寸
+- 深度 51 厘米 | 20.08 英寸
+- 高度 80 厘米 | 31.50 英寸
+- 座高 44 厘米 | 17.32 英寸
+- 座深 41 厘米 | 16.14 英寸
+
+选项
+- 软质或硬质地板轮选项。
+- 座垫泡沫密度可选两种：中等（1.8 磅/立方英尺）或高（2.8 磅/立方英尺）。
+- 无扶手或8位置PU扶手。
+
+材料
+外壳底座滑块
+- 铸铝，改性尼龙 PA6/PA66 涂层。
+- 壳体厚度：10 毫米。
+座椅
+- HD36 泡沫
+
+原产地
+- 意大利
+```
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>这款中世纪办公家具系列展现出优雅的设计和实用性的完美结合。无论您是在家中还是商务场所使用，都能为您提供舒适和风格。
+
+外观：
+这一系列包括文件柜、书桌、书架、会议桌等，每一件都经过精心设计，呈现出中世纪的美感。您可以根据个人喜好选择多种外壳颜色和底座涂装，让家具与您的装饰风格完美融合。此外，我们提供塑料背部和正面面料（SWC-100）或全面料（SWC-110）选项，涵盖10种布料和6种皮革供您选择，确保您的家具与您的品味相得益彰。
+
+构造：
+这些家具采用高品质材料制成，稳固耐用。铝制底座带有五轮塑料涂层，提供稳定的支撑和灵活的移动性。椅子配有气动高度调节功能，让您可以轻松调整座椅高度，确保舒适的工作姿势。
+
+尺寸：
+每件家具都经过精确设计，确保尺寸合适且舒适。宽53厘米，深51厘米，高80厘米，座高44厘米，座深41厘米，适合大多数场合和体型的使用。
+
+选项：
+我们考虑到了不同用户的需求，提供了多种选项。您可以根据地板类型选择软质或硬质地板轮，以确保家具在移动时不会划伤地板。此外，座垫泡沫密度可选两种：中等（1.8磅/立方英尺）或高（2.8磅/立方英尺），以满足您对舒适度的不同需求。您还可以选择椅子是否配备扶手，有无扶手或8位置PU扶手供您选择。
+
+材料：
+这些家具采用高品质材料制成，外壳底座滑块采用铸铝，改性尼龙PA6/PA66涂层，确保稳固耐用。座椅采用HD36泡沫，提供舒适的坐感。
+
+原产地：
+我们的家具源自意大利，以其精湛的工艺和优质的材料享誉全球。
+</code></pre>
+<p><strong>以上prompt返回的内容的问题是</strong>：</p>
+<ol>
+<li>返回的文本太长；</li>
+<li>聚焦在了错误的细节；</li>
+<li>需要一个表格的描述。</li>
+</ol>
+<p>通过迭代的方法，不断的完善prompt</p>
+<p>这跟写代码调试一样， 先编写代码， 然后编译调试， 看看报什么错， 分析一下原因，修改代码后， 继续重复。  因此如果不用担心， 第一次写的prompt 不太能工作， 这很正常。</p>
+<pre><code class="language-mermaid">graph LR
+开始--&gt;Prompt --&gt; 经验结果--&gt;错误分析--&gt;新思路--&gt;Prompt
+</code></pre>
+<p><strong>最多不要超过50个字</strong></p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code class="language-markdown">你的任务是协助市场团队根据技术规格单为零售网站创建产品描述。
+
+根据技术规格单提供的信息编写产品描述，使用三个反引号括起来的内容。
+要求最多不要超过50个字。 
+技术规格单：
+```
+概览
+- 属于一系列美丽的中世纪办公家具，包括文件柜、书桌、书架、会议桌等。
+- 多种外壳颜色和底座涂装可选。
+- 提供塑料背部和正面面料（SWC-100）或全面料（SWC-110）选项，有10种布料和6种皮革可选。
+- 底座涂装选项有：不锈钢、哑光黑、光泽白或铬色。
+- 椅子可选择搭配或不搭配扶手。
+- 适用于家庭或商务场所。
+- 合格用于合同使用。
+
+构造
+- 五轮塑料涂层铝制底座。
+- 气动椅高调节，方便升降。
+
+尺寸
+- 宽度 53 厘米 | 20.87 英寸
+- 深度 51 厘米 | 20.08 英寸
+- 高度 80 厘米 | 31.50 英寸
+- 座高 44 厘米 | 17.32 英寸
+- 座深 41 厘米 | 16.14 英寸
+
+选项
+- 软质或硬质地板轮选项。
+- 座垫泡沫密度可选两种：中等（1.8 磅/立方英尺）或高（2.8 磅/立方英尺）。
+- 无扶手或8位置PU扶手。
+
+材料
+外壳底座滑块
+- 铸铝，改性尼龙 PA6/PA66 涂层。
+- 壳体厚度：10 毫米。
+座椅
+- HD36 泡沫
+
+原产地
+- 意大利
+```
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>美丽的中世纪办公家具系列，多种颜色和底座涂装选择。气动调节高度，适用于家庭或商务场所。
+</code></pre>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>你的任务是帮助营销团队根据技术事实表创建一份产品描述，用于零售网站。
+
+根据三个反引号包围的技术规格中提供的信息编写产品描述。
+
+描述面向家具零售商，因此应具有技术性质，侧重于产品所使用的材料。
+
+在描述末尾，包括技术规格中的每个7字符产品ID。
+
+描述之后，包括一个表格，其中列出了产品的尺寸。表格应包含两列。第一列包括尺寸名称。第二列仅包括以英寸为单位的测量值。
+
+给表格加上标题'产品尺寸'。
+
+将所有内容格式化为markdown文本。将描述放在一个引用中。
+
+```
+概览
+- 属于一系列美丽的中世纪办公家具，包括文件柜、书桌、书架、会议桌等。
+- 多种外壳颜色和底座涂装可选。
+- 提供塑料背部和正面面料（SWC-100）或全面料（SWC-110）选项，有10种布料和6种皮革可选。
+- 底座涂装选项有：不锈钢、哑光黑、光泽白或铬色。
+- 椅子可选择搭配或不搭配扶手。
+- 适用于家庭或商务场所。
+- 合格用于合同使用。
+
+构造
+- 五轮塑料涂层铝制底座。
+- 气动椅高调节，方便升降。
+
+尺寸
+- 宽度 53 厘米 | 20.87 英寸
+- 深度 51 厘米 | 20.08 英寸
+- 高度 80 厘米 | 31.50 英寸
+- 座高 44 厘米 | 17.32 英寸
+- 座深 41 厘米 | 16.14 英寸
+
+选项
+- 软质或硬质地板轮选项。
+- 座垫泡沫密度可选两种：中等（1.8 磅/立方英尺）或高（2.8 磅/立方英尺）。
+- 无扶手或8位置PU扶手。
+
+材料
+外壳底座滑块
+- 铸铝，改性尼龙 PA6/PA66 涂层。
+- 壳体厚度：10 毫米。
+座椅
+- HD36 泡沫
+
+原产地
+- 意大利
+```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<figure data-type="image" tabindex="4"><img src="./images/image_20240326155434891.png" alt="image_20240326155434891" loading="lazy"></figure>
+<h1 id="第三章-文本总结">第三章 文本总结</h1>
+<h2 id="用一个句子词字符的限制概括内容">用一个句子/词/字符的限制概括内容</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>你的任务是从电子商务网站的产品评论中生成一个简短的摘要。
+
+请在三个反引号中将以下评论总结为最多30个词。
+
+评论: ```在女儿的生日时给她买了这只熊猫毛绒玩具，她非常喜欢，随身携带。它柔软可爱，面部表情友好。但相对于我支付的价格来说，它有点小。我觉得可能有其他选项，同样的价格但更大一些。比预期提前了一天送达，所以我在把它送给她之前还有时间自己玩了一下。```
+</code></pre>
+<h2 id="以运输和交付为重点进行总结">以运输和交付为重点进行总结</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>你的任务是从电子商务网站的产品评论中生成一个简短的摘要，以向运输部门提供反馈。
+
+请在三个反引号中将以下评论总结为最多30个词，并侧重于提及产品的运输和交付方面。
+评论: ```在女儿的生日时给她买了这只熊猫毛绒玩具，她非常喜欢，随身携带。它柔软可爱，面部表情友好。但相对于我支付的价格来说，它有点小。我觉得可能有其他选项，同样的价格但更大一些。比预期提前了一天送达，所以我在把它送给她之前还有时间自己玩了一下。```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>评论：```产品送达及时，提前一天送达。但产品尺寸对价格不太合适。建议考虑提供更大尺寸的选项。```
+</code></pre>
+<h2 id="重点总结价格和价值感受">重点总结价格和价值感受</h2>
+<blockquote>
+<p>promt</p>
+</blockquote>
+<pre><code>任务是从电子商务网站的产品评论中生成一个简短的摘要，以便向定价部门提供反馈。该部门负责确定产品的价格。
+
+请在三个反引号中将以下评论总结为最多30个词，侧重于与价格和感知价值相关的方面。
+
+评论: ```在女儿的生日时给她买了这只熊猫毛绒玩具，她非常喜欢，随身携带。它柔软可爱，面部表情友好。但相对于我支付的价格来说，它有点小。我觉得可能有其他选项，同样的价格但更大一些。比预期提前了一天送达，所以我在把它送给她之前还有时间自己玩了一下。```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>评论：```产品柔软可爱，但相对价格稍小。建议提供更大选项以提高感知价值。提前一天送达，增加购买满意度。```
+</code></pre>
+<h2 id="用提取来替代总结">用“提取”来替代“总结”</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>你的任务是从电子商务网站的产品评论中提取相关信息，以向运输部门提供反馈。
+
+请从以下评论中提取与运输和交付相关的信息，限制在30个词以内。
+
+评论: ```在女儿的生日时给她买了这只熊猫毛绒玩具，她非常喜欢，随身携带。它柔软可爱，面部表情友好。但相对于我支付的价格来说，它有点小。我觉得可能有其他选项，同样的价格但更大一些。比预期提前了一天送达，所以我在把它送给她之前还有时间自己玩了一下。```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>提前一天送达，增加购买满意度。
+</code></pre>
+<h1 id="第四章-推理文本的类型">第四章 推理文本的类型</h1>
+<p>本章你将从产品评论和新闻文章中推断情感和主题。</p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>以下产品评论的情感是什么，使用三个反引号进行分隔？
+评论文本：'''需要一个漂亮的卧室灯，这款灯还带有额外的储物空间，价格也不算太高。快递送到的时候，我们灯的拉线断了，但公司很乐意寄来了一根新的。几天之内就送到了。安装很简单。我缺了一个零件，所以我联系了他们的客服，他们很快就给我寄来了缺失的零件！Lumina 看起来是一家很重视客户和产品的好公司
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>```积极```
+
+</code></pre>
+<figure data-type="image" tabindex="5"><img src="./images/image_20240327122412655.png" alt="image_20240327122412655" loading="lazy"></figure>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>以下是这个产品评论的情感，用三个反引号括起来：
+评论文本：'''需要一个漂亮的卧室灯，这款灯还带有额外的储物空间，价格也不算太高。快递送到的时候，我们灯的拉线断了，但公司很乐意寄来了一根新的。几天之内就送到了。安装很简单。我缺了一个零件，所以我联系了他们的客服，他们很快就给我寄来了缺失的零件！Lumina 看起来是一家很重视客户和产品的好公司
+'''
+给出你的答案，只用一个词，要么是“积极”，要么是“消极”。
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>积极
+</code></pre>
+<h2 id="识别情感类型">识别情感类型</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>识别以下评论作者表达的情感列表。列表中不超过五个项目。将你的答案格式化为逗号分隔的小写单词列表。
+评论文本：'''需要一个漂亮的卧室灯，这款灯还带有额外的储物空间，价格也不算太高。快递送到的时候，我们灯的拉线断了，但公司很乐意寄来了一根新的。几天之内就送到了。安装很简单。我缺了一个零件，所以我联系了他们的客服，他们很快就给我寄来了缺失的零件！Lumina 看起来是一家很重视客户和产品的好公司
+'''
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>满意,愉快,满足,感激,信任
+</code></pre>
+<h2 id="识别愤怒">识别愤怒</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>以下评论的作者是否在表达愤怒？评论用三个反引号括起来。回答要么是，要么否。
+评论文本：'''需要一个漂亮的卧室灯，这款灯还带有额外的储物空间，价格也不算太高。快递送到的时候，我们灯的拉线断了，但公司很乐意寄来了一根新的。几天之内就送到了。安装很简单。我缺了一个零件，所以我联系了他们的客服，他们很快就给我寄来了缺失的零件！Lumina 看起来是一家很重视客户和产品的好公司
+'''
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>否
+</code></pre>
+<h2 id="提取客户评论中的产品和公司名称">提取客户评论中的产品和公司名称</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>&quot;识别评论文本中的以下项目：
+	- 由评论者购买的物品
+	- 制造物品的公司
+评论用三个反引号括起来。
+将您的回应格式化为一个 csv 对象，其中
+&quot;Item&quot; 和 &quot;Brand&quot; 是键。
+如果信息不存在，请将值设为 &quot;未知&quot;。
+尽可能简洁地回答。&quot;
+评论文本：'''需要一个漂亮的卧室灯，这款灯还带有额外的储物空间，价格也不算太高。快递送到的时候，我们灯的拉线断了，但公司很乐意寄来了一根新的。几天之内就送到了。安装很简单。我缺了一个零件，所以我联系了他们的客服，他们很快就给我寄来了缺失的零件！Lumina 看起来是一家很重视客户和产品的好公司
+'''
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>Item,Brand
+卧室灯,Lumina
+</code></pre>
+<h2 id="同时做多项任务">同时做多项任务</h2>
+<blockquote>
+<p>promot</p>
+</blockquote>
+<pre><code>从评论中识别以下项目：
+- 情感（积极或消极）
+- 评论者是否表达了愤怒？（是或否）
+- 评论者购买的物品
+- 制造该物品的公司
+
+评论以三个反引号分隔。
+将您的响应格式化为 json 对象
+“情绪”、“愤怒”、“物品”和“品牌”为键。
+如果信息不存在，请使用“未知”
+作为值。
+让您的回复尽可能简短。
+将愤怒值设置为布尔值。
+评论文本：'''需要一个漂亮的卧室灯，这款灯还带有额外的储物空间，价格也不算太高。快递送到的时候，我们灯的拉线断了，但公司很乐意寄来了一根新的。几天之内就送到了。安装很简单。我缺了一个零件，所以我联系了他们的客服，他们很快就给我寄来了缺失的零件！Lumina 看起来是一家很重视客户和产品的好公司
+'''
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>{
+  &quot;情绪&quot;: &quot;积极&quot;,
+  &quot;愤怒&quot;: false,
+  &quot;物品&quot;: &quot;卧室灯&quot;,
+  &quot;品牌&quot;: &quot;Lumina&quot;
+}
+
+</code></pre>
+<h2 id="主题推断">主题推断</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>确定以下文本中正在讨论的五个主题，这些主题由三个反引号分隔。
+让每一项长一到两个字。
+将您的回复格式化为以逗号分隔的项目列表。
+文本：```
+最近政府进行的一项调查中，公共部门员工被要求评价他们所在部门的满意度。结果显示，NASA 是最受欢迎的部门，满意度达到了 95%。
+
+一名NASA员工约翰·史密斯评论了这些发现，他说：“我对NASA位居榜首并不感到惊讶。这是一个非常棒的工作地方，有着令人惊叹的人才和令人难以置信的机会。能成为这样一个创新组织的一员，我感到自豪。”
+
+NASA的管理团队也对这一结果表示欢迎，NASA主任汤姆·约翰逊表示：“听到我们的员工对NASA的工作感到满意，我们感到非常高兴。我们拥有一支才华横溢、敬业奉献的团队，他们不知疲倦地工作以实现我们的目标，看到他们的辛勤工作取得了成果，真是太棒了。”
+
+调查还显示，社会保障管理局的满意度最低，只有45%的员工表示对工作满意。政府承诺解决调查中员工提出的问题，并努力改善各部门的工作满意度。
+```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>- 调查结果
+- NASA的满意度
+- NASA员工的评论
+- NASA管理团队的回应
+- 社会保障管理局的满意度
+</code></pre>
+<h2 id="制作特定主题的新闻判断">制作特定主题的新闻判断</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>确定以下主题列表中的每个项目是否在下文中作为一个话题。文本用三个反引号括起来。
+
+主题列表：{&quot;nasa&quot;, &quot;local government&quot;, &quot;engineering&quot;,     &quot;employee satisfaction&quot;, &quot;federal government&quot;}
+给出一个答案例表，形式如{主题： true/false}
+文本样例：
+```
+最近政府进行的一项调查中，公共部门员工被要求评价他们所在部门的满意度。结果显示，NASA 是最受欢迎的部门，满意度达到了 95%。
+
+一名NASA员工约翰·史密斯评论了这些发现，他说：“我对NASA位居榜首并不感到惊讶。这是一个非常棒的工作地方，有着令人惊叹的人才和令人难以置信的机会。能成为这样一个创新组织的一员，我感到自豪。”
+
+NASA的管理团队也对这一结果表示欢迎，NASA主任汤姆·约翰逊表示：“听到我们的员工对NASA的工作感到满意，我们感到非常高兴。我们拥有一支才华横溢、敬业奉献的团队，他们不知疲倦地工作以实现我们的目标，看到他们的辛勤工作取得了成果，真是太棒了。”
+
+调查还显示，社会保障管理局的满意度最低，只有45%的员工表示对工作满意。政府承诺解决调查中员工提出的问题，并努力改善各部门的工作满意度。
+```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code class="language-yaml">nasa: true
+local government: true
+engineering: false
+employee satisfaction: true
+federal government: true
+
+</code></pre>
+<h1 id="第五章-自然语言">第五章 自然语言</h1>
+<p>chatgpt 被训练能够支持多种语言。 你可以用他做为你的通用翻译器。 也可以帮你将语言进行语气变换。</p>
+<h2 id="翻译">翻译</h2>
+<h3 id="例1-简单的翻译">例1 简单的翻译</h3>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>将以下英文文本翻译为中文：
+```Hi, I would like to order a blender```
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>嗨，我想订购一个搅拌机。
+</code></pre>
+<h3 id="例2-翻译为多语言">例2  翻译为多语言</h3>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>将以下英文文本翻译为中文、日文、韩文：
+```Hi, I would like to order a blender```
+
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>中文：嗨，我想订购一个搅拌机。
+日文：こんにちは、ブレンダーを注文したいです。
+韩文：안녕하세요, 믹서기를 주문하고 싶습니다.
+</code></pre>
+<h2 id="例3-识别语种">例3 识别语种</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>告诉我这是哪一种语言:
+```Combien coûte le lampadaire?```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>这是法语。
+</code></pre>
+<h2 id="转换语气">转换语气</h2>
+<p>写作风格可以根据预期的受众而变化。ChatGPT可以产生不同的语气。</p>
+<h3 id="例1-转换为正式用语">例1 转换为正式用语</h3>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>将以下俚语翻译成商务信函：
+&quot;先生/女士，我是乔。请您查阅这款落地灯的规格。&quot;
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>尊敬的先生/女士，
+
+我是乔。请您查看这款落地灯的规格。
+
+谢谢，
+
+[你的姓名]
+</code></pre>
+<h2 id="拼写检查语法检查">拼写检查/语法检查</h2>
+<p>以下是一些常见的语法和拼写问题以及LLM的响应。</p>
+<p>为了向LLM表示您希望它校对您的文本，您可以指示模型“校对”或“校对并更正”。</p>
+<h3 id="例-检查语法给出纠正版本">例 检查语法给出纠正版本</h3>
+<blockquote>
+<p>prompt</p>
+<p>这个例子以英文为例， 如果您有更好的中文示例， 请联系我。</p>
+<p>校对并纠正以下文本，并重写纠正后的版本。如果您找不到错误，只需说“未发现错误”。在文本周围不要使用任何标点符号：</p>
+</blockquote>
+<pre><code class="language-python">text = [ 
+  &quot;The girl with the black and white puppies have a ball.&quot;,  # The girl has a ball.
+  &quot;Yolanda has her notebook.&quot;, # ok
+  &quot;Its going to be a long day. Does the car need it’s oil changed?&quot;,  # Homonyms
+  &quot;Their goes my freedom. There going to bring they’re suitcases.&quot;,  # Homonyms
+  &quot;Your going to need you’re notebook.&quot;,  # Homonyms
+  &quot;That medicine effects my ability to sleep. Have you heard of the butterfly affect?&quot;, # Homonyms
+  &quot;This phrase is to cherck chatGPT for speling abilitty&quot;  # spelling
+]
+for t in text:
+    prompt = f&quot;&quot;&quot;Proofread and correct the following text
+    and rewrite the corrected version. If you don't find
+    and errors, just say &quot;No errors found&quot;. Don't use 
+    any punctuation around the text:
+    ```{t}```&quot;&quot;&quot;
+    response = get_completion(prompt)
+    print(response)
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>
+</code></pre>
+<figure data-type="image" tabindex="6"><img src="./images/image_20240327164032522.png" alt="image_20240327164032522" loading="lazy"></figure>
+<h2 id="我的经验">我的经验</h2>
+<p>关于翻译比较难的一点是当你翻译的内容带有指令的文本， gpt-3.5 经常搞错。 即便是你用了分割符。</p>
+<h3 id="例">例</h3>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>翻译为中文：
+```
+你的任务是将以下内容转换为表格：
+a=1, 2,3
+b=4,5,6
+c=7,8,9
+```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>Sure, here is the content translated into a table format:
+
+|      | a    | b    | c    |
+| ---- | ---- | ---- | ---- |
+| 1    | 1    | 4    | 7    |
+| 2    | 2    | 5    | 8    |
+| 3    | 3    | 6    | 9    |
+
+</code></pre>
+<p>输出的内容将正文当作指令执行了。</p>
+<p>你可以用下面的方法，来解决这个问题。</p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>将以下文本靠三个反引号包围，翻译为英文：
+```
+你的任务是将以下内容转换为表格：
+a=1, 2,3
+b=4,5,6
+c=7,8,9
+```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>```
+Your task is to convert the following content into a table:
+a=1, 2,3
+b=4,5,6
+c=7,8,9
+```
+</code></pre>
+<h1 id="第六章-文本内容生成">第六章 文本内容生成</h1>
+<p>给大语言模型一个简短的提示， 让大语言模型生成一封邮件、长文章。</p>
+<p>在这节课上， 根据用户的评论生成回复客户的邮件。</p>
+<p>你可告诉大语言模型，识别评论文本的情绪，是消极的还是积极的。</p>
+<p>要求大语言模型根据消极的/积极的 情绪 来生成相应的邮件。</p>
+<h2 id="从客户评论中生成一封电子邮件">从客户评论中生成一封电子邮件</h2>
+<h3 id="例-从客户评论生成电子邮件">例 从客户评论生成电子邮件</h3>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>您是一位客服AI助手。
+您的任务是发送一封电子邮件回复给一位重要客户。
+给定以```分隔的客户电子邮件，生成一封回复，感谢客户的评论。 如果情绪是积极的或中性的，请感谢他们的评论。 如果情绪是消极的，请道歉并建议他们联系客服。 确保使用评论中的具体细节。 以简洁、专业的语气写信。 以“AI客户代理”签署电子邮件。 
+客户评论：```所以，他们在11月份的某个时候仍然以约49美元的价格季节性销售这个17件套装，大约半价，但出于某种原因（可以称之为哄抬价格），到了12月第二周，同样的套装价格都上涨到了大约70到89美元之间。而11件套装的价格也比之前的销售价格29美元上涨了大约10美元左右。所以看起来还好，但如果你看底座的话，刀片锁入的部分看起来不像几年前的之前版本那么好，但我打算对它非常温柔（例如，我会先在搅拌机里将豆类、冰、米等硬物品搅碎，然后在搅拌机中搅拌成我想要的份量，然后切换到打蛋器刀片以获得更细的面粉，如果我需要更细/不那么多果渣，我会先使用交叉切割刀片制作冰沙，然后使用平刀片）。制作冰沙时的特别提示是，将水果和蔬菜切成细片并冷冻（如果使用菠菜-轻轻炖软菠菜然后冷冻直到使用时-如果制作果冻，使用小到中号的食品加工机），这样你就可以避免在制作冰沙时添加太多冰。大约一年后，电机开始发出奇怪的噪音。我打电话给客户服务，但保修期已经过期了，所以我不得不再买一个。顺便说一句：这类产品的整体质量已经下降了，所以他们有点依赖品牌认可度和消费者忠诚度来维持销售。大约两天就送到了。```
+评论情绪：```消积的```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>尊敬的客户，
+
+非常感谢您分享您的经验和反馈。我们对您提到的问题感到十分抱歉，我们的目标是提供高质量的产品和服务，而您的体验似乎没有达到我们的期望标准。对于您在12月第二周遇到的价格上涨以及产品质量下降的问题，我们深感遗憾。
+
+为了解决您的问题并改善您的体验，我们建议您直接联系我们的客户服务团队。他们将尽力协助您并提供可能的解决方案。我们致力于确保每位客户都获得满意的服务和产品，您的反馈对我们来说非常重要。
+
+再次感谢您抽出时间与我们分享您的看法和经历。如果您需要任何帮助或进一步的支持，请随时联系我们的客户服务团队。
+
+祝您一切顺利。
+
+AI客户代理
+</code></pre>
+<h3 id="提醒大语言模型利用客户电子邮件中的细节">提醒大语言模型利用客户电子邮件中的细节</h3>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>您是一位客服AI助手。
+您的任务是发送一封电子邮件回复给一位重要客户。
+给定以```分隔的客户电子邮件，生成一封回复，感谢客户的评论。 如果情绪是积极的或中性的，请感谢他们的评论。 
+如果情感是积极的或中性的，感谢他们的评论。
+如果情感是负面的，道歉并建议他们可以联系客户服务。
+确保使用评论中的具体细节。
+以简洁、专业的语气写作。
+客户评论：```所以，他们在11月份的某个时候仍然以约49美元的价格季节性销售这个17件套装，大约半价，但出于某种原因（可以称之为哄抬价格），到了12月第二周，同样的套装价格都上涨到了大约70到89美元之间。而11件套装的价格也比之前的销售价格29美元上涨了大约10美元左右。所以看起来还好，但如果你看底座的话，刀片锁入的部分看起来不像几年前的之前版本那么好，但我打算对它非常温柔（例如，我会先在搅拌机里将豆类、冰、米等硬物品搅碎，然后在搅拌机中搅拌成我想要的份量，然后切换到打蛋器刀片以获得更细的面粉，如果我需要更细/不那么多果渣，我会先使用交叉切割刀片制作冰沙，然后使用平刀片）。制作冰沙时的特别提示是，将水果和蔬菜切成细片并冷冻（如果使用菠菜-轻轻炖软菠菜然后冷冻直到使用时-如果制作果冻，使用小到中号的食品加工机），这样你就可以避免在制作冰沙时添加太多冰。大约一年后，电机开始发出奇怪的噪音。我打电话给客户服务，但保修期已经过期了，所以我不得不再买一个。顺便说一句：这类产品的整体质量已经下降了，所以他们有点依赖品牌认可度和消费者忠诚度来维持销售。大约两天就送到了。```
+评论情绪：```消积的```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>尊敬的客户，
+
+感谢您的评论。我们非常感谢您分享您对我们产品的看法。我们很高兴听到您对我们的产品有积极的评价。
+
+对于您提到的价格上涨和产品质量下降的问题，我们深感抱歉。我们会认真考虑您的反馈，并努力改进我们的产品和服务。
+
+如果您有任何其他问题或需要进一步的帮助，请随时联系我们的客户服务团队。我们将竭诚为您提供支持和协助。
+
+谢谢您再次选择我们的产品。
+
+祝您一切顺利！
+
+AI客户代理
+</code></pre>
+<h1 id="第七章-聊天机器人chatbot">第七章 聊天机器人（chatbot）</h1>
+<p>在本章中，实现针对特定任务或行为的聊天机器人。</p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>你是订单机器人，为一家披萨餐厅的提供自动服务，用于收集订单。
+首先，我会问候客人，然后收集订单，
+接着询问是自取还是外送。
+你会等待收集完整的订单，然后总结并最后确认客人是否还想再加点别的。
+如果是外送，你会询问地址。
+最后，你会收取付款。
+请确保清楚地说明所有选项、附加配料和尺寸，以便唯一地确定菜单上的项目。
+你会以简短、非常友好的方式进行回应。
+菜单包括：
+  意大利辣香肠披萨 12.95、10.00、7.00
+  芝士披萨 10.95、9.25、6.50
+  茄子披萨 11.95、9.75、6.75
+  薯条 4.50、3.50
+  希腊沙拉 7.25
+  配料：
+  额外芝士 2.00
+  蘑菇 1.50
+  意大利辣香肠 3.00
+  加拿大培根 3.50
+  AI酱 1.50
+  彩椒 1.00
+  饮料：
+  可乐 3.00、2.00、1.00
+  雪碧 3.00、2.00、1.00
+  瓶装水 5.00
+</code></pre>
+<figure data-type="image" tabindex="7"><img src="./images/image_20240327180426346.png" alt="image_20240327180426346" loading="lazy"></figure>
+<h1 id="第八章-大语言模型的基本原理未完成">第八章  大语言模型的基本原理（未完成）</h1>
+<p>不是机器学习算法出身， 关于模型原理相关的内容， 我推荐你看：</p>
+<ul>
+<li>
+<p><a href="https://learningprompt.wiki/zh-Hans/docs/ai-101/LLMs">LLMs </a> 作者写的非常好</p>
+<blockquote>
+<p>作者的这个网站非常实用， 可以用来学习prompt</p>
+</blockquote>
+</li>
+<li>
+<p>大语言模型应用开发极简入门</p>
+<blockquote>
+<p>如果不想买书，又找不到电子书，可以联系我</p>
+</blockquote>
+</li>
+</ul>
+<figure data-type="image" tabindex="8"><img src="./images/image_20240327183508373.png" alt="image_20240327183508373" loading="lazy"></figure>
+<h1 id="第九章-prompt框架正在更新中">第九章 Prompt框架（正在更新中）</h1>
+<h2 id="crispe-框架">CRISPE  框架</h2>
+<p><a href="https://github.com/mattnigh/ChatGPT3-Free-Prompt-List">Matt Nigh</a> 的 CRISPE Framework，比较适合用于编写 prompt 模板。CRISPE 分别代表以下含义：</p>
+<ul>
+<li>CR: Capacity and Role（能力与角色）。你希望 ChatGPT 扮演怎样的角色。</li>
+<li>I:Insight（洞察力），背景信息和上下文（坦率的说我觉得用Context 更好）。</li>
+<li>S： Statement（指令），你希望 ChatGPT 做什么。</li>
+<li>P：Personality（个性），你希望 ChatGPT 以什么风格或方式回答你。</li>
+<li>E：Experiment（尝试），要求 ChatGPT 为你提供多个答案。</li>
+</ul>
+<p>以下是这几个参数的例子：</p>
+<table>
+<thead>
+<tr>
+<th><strong>Step</strong></th>
+<th><strong>Example</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Capacity and Role</td>
+<td>Act as an expert on software development on the topic of machine learning frameworks, and an expert blog writer. 把你想象成机器学习框架主题的软件开发专家，以及专业博客作者。</td>
+</tr>
+<tr>
+<td>Insight</td>
+<td>The audience for this blog is technical professionals who are interested in learning about the latest advancements in machine learning. 这个博客的读者主要是有兴趣了解机器学习最新进展技术的专业人士。</td>
+</tr>
+<tr>
+<td>Statement</td>
+<td>Provide a comprehensive overview of the most popular machine learning frameworks, including their strengths and weaknesses. Include real-life examples and case studies to illustrate how these frameworks have been successfully used in various industries. 提供最流行的机器学习框架的全面概述，包括它们的优点和缺点。包括现实生活中的例子，和研究案例，以说明这些框架如何在各个行业中成功地被使用。</td>
+</tr>
+<tr>
+<td>Personality</td>
+<td>When responding, use a mix of the writing styles of Andrej Karpathy, Francois Chollet, Jeremy Howard, and Yann LeCun. 在回应时，混合使用 Andrej Karpathy、Francois Chollet、Jeremy Howard 和 Yann LeCun 的写作风格。</td>
+</tr>
+<tr>
+<td>Experiment</td>
+<td>Give me multiple different examples. 给我多个不同的例子。</td>
+</tr>
+</tbody>
+</table>
+<p>将所有的元素都组合在一起，就变成了这样的 prompt，对比基础 prompt 生成的结果会非常不一样。</p>
+<h2 id="图灵机式的框架">图灵机式的框架</h2>
+<p>作者是Mr.Bear， 我自己总结一个小框架， 大多数时候效果比较好。</p>
+<ul>
+<li>
+<p>Input: 给出执行指令需要上下文或其他信息。</p>
+</li>
+<li>
+<p>Instruction: 指令。 指示模型完成的任务， 处理方法或步骤。</p>
+</li>
+<li>
+<p>Output： 输出。 指示模型按你想要的格式输出。</p>
+</li>
+<li>
+<p>filter: 过滤， 可选项。</p>
+</li>
+</ul>
+<p>结上我在文中提到的原则和技巧， 辅助我上面的框架， 能满足大多数日常的工作。</p>
+<h1 id="第十章-总结">第十章 总结</h1>
+<p>如果你能从头到尾练习一遍，遇到一些问题，然后解决它们，相信你现在已经可以很熟练地使用ChatGPT完成你的工作了。</p>
+<p>首先，清晰和明确的表达指令是最基础也是最重要的。在工作中，这一点非常关键。指示模型完成任务时，首先应当清楚地描述工作内容，包括：</p>
+<ul>
+<li>任务是什么</li>
+<li>任务的背景信息是什么</li>
+<li>何时完成或交付</li>
+<li>交付标准是什么</li>
+</ul>
+<p>为了确保你的下属按照你期望的目标进行工作，你需要定期审查他们的工作，确保他们的工作在正确的轨道上。这就是我们在第二章中所说的，你需要让他们首先思考，然后再给予指导。</p>
+<p>你可以使用大型语言模型进行文本处理，例如对文章进行概括汇总，提取重要信息，通过文章内容推理出主题和情绪（积极/消极）。</p>
+<p>你可以用大型语言模型（ChatGPT）完成多语言的翻译。ChatGPT还可以用于生成不同风格的语句，例如轻松愉快的或表达愤怒的语句。</p>
+<p>你可以编写有效的提示词，帮助你生成邮件。当ChatGPT刚发布时，我曾用它为我老婆写过一封关于研究生入学的推荐信，效果非常好。我在上面的示例中为你展示了根据客户评论撰写回复邮件的例子。</p>
+<p>此外，最重要的是，不要让模型直接给出答案。你应该指导模型自己去解决问题。你可以为模型设计解决问题的路径，让模型按照你指示的路径自行推理出正确的答案。</p>
+<h1 id="第十一章-prompt-engineering-的练习">第十一章 Prompt Engineering 的练习</h1>
+<p>关于Prompt Engineer 是一个动手大于动脑的工作， 动脑也很重要。</p>
+<p>需要反复的练习和操作， 摸索大语言模型的经验。</p>
+<p>单单是学习任何一门课程或只看我的文章， 都无法保证你能高效的掌握所有 Prompt 的技巧。</p>
+<h1 id="参考">参考</h1>
+<p><a href="https://www.deeplearning.ai/courses/generative-ai-for-everyone/"><strong>generative ai for everyone</strong> </a></p>
+<p><a href="https://www.deeplearning.ai/courses/generative-ai-for-everyone/"><strong>ChatGPT Prompt Engineering for Developers</strong></a></p>
+<p><a href="https://learningprompt.wiki/"><strong>Learning Prompt</strong></a></p>
+<p><a href="https://learnprompting.org/"><strong>learningprompting</strong></a></p>
+<p><a href="https://www.moreusefulthings.com/prompts">Prompt提示词大全</a></p>
+<p><a href="https://baoyu.io/blog/prompt-engineering/translator-gpt-prompt-v2">直译、反思、意译：提升 GPT 翻译质量的一种新策略</a></p>
+<p><a href="https://promptperfect.jina.ai/">优化AI提示词 </a></p>
+<h1 id="about-me">About Me</h1>
+<p><a href="https://twitter.com/GreenPanda_111">Mr. Bear</a></p>
+<p><a href="https://ishell.online/">Blog</a></p>
+<p><a href="https://github.com/pandabear1024">github</a></p>
+<h1 id="版权声明">版权声明</h1>
+<p>本内容为独家版权， 如需转载，请联系本人。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Elasticsearch 和 Kibana 学习]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/elasticsearch-he-kibana-xue-xi/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/elasticsearch-he-kibana-xue-xi/">
+        </link>
+        <updated>2025-05-21T09:31:53.000Z</updated>
+        <content type="html"><![CDATA[<hr>
+<h2 id="第一步理解-elasticsearch-是什么">🧠 第一步：理解 Elasticsearch 是什么</h2>
+<p><strong>Elasticsearch</strong> 是一个分布式、开源的搜索和分析引擎，适合处理大规模的结构化或半结构化数据。它常用于：</p>
+<ul>
+<li>全文搜索</li>
+<li>日志分析（如配合 Filebeat、Logstash 使用）</li>
+<li>实时指标监控（如 APM）</li>
+<li>数据可视化（通常配合 Kibana）</li>
+</ul>
+<p>Elasticsearch 的核心是一个强大的 JSON 文档数据库，它支持复杂查询、高性能全文搜索和聚合分析。</p>
+<hr>
+<h2 id="第二步核心概念详解">🧱 第二步：核心概念详解</h2>
+<h3 id="1-文档document">1. <strong>文档（Document）</strong></h3>
+<ul>
+<li>Elasticsearch 的基本数据单位。</li>
+<li>一个文档是一个 JSON 对象。</li>
+<li>类似于数据库中的“行”。</li>
+</ul>
+<pre><code class="language-json">{
+  &quot;name&quot;: &quot;Audrey&quot;,
+  &quot;age&quot;: 28,
+  &quot;skills&quot;: [&quot;Python&quot;, &quot;Elasticsearch&quot;]
+}
+</code></pre>
+<h3 id="2-索引index">2. <strong>索引（Index）</strong></h3>
+<ul>
+<li>文档的集合，相当于数据库中的“表”。</li>
+<li>每个索引都有自己的名称和配置。</li>
+<li>文档必须属于某个索引。</li>
+</ul>
+<p>创建索引示例：</p>
+<pre><code class="language-bash">PUT /my_index
+</code></pre>
+<h3 id="3-映射mapping">3. <strong>映射（Mapping）</strong></h3>
+<ul>
+<li>定义索引中字段的结构（类似 SQL 的 schema）。</li>
+<li>包括字段的类型（如 <code>text</code>、<code>keyword</code>、<code>date</code>、<code>integer</code>）和属性（是否可被搜索、是否建立倒排索引等）。</li>
+</ul>
+<p>示例：</p>
+<pre><code class="language-bash">PUT /my_index
+{
+  &quot;mappings&quot;: {
+    &quot;properties&quot;: {
+      &quot;name&quot;: { &quot;type&quot;: &quot;text&quot; },
+      &quot;age&quot;: { &quot;type&quot;: &quot;integer&quot; },
+      &quot;join_date&quot;: { &quot;type&quot;: &quot;date&quot; }
+    }
+  }
+}
+</code></pre>
+<h3 id="4-类型type">4. <strong>类型（Type）</strong></h3>
+<ul>
+<li>老版本中一个索引可有多个“type”，但<strong>新版本已废弃 type 概念</strong>，每个索引只允许一个文档类型。</li>
+</ul>
+<hr>
+<h2 id="第三步基本操作使用-kibana-console">🔧 第三步：基本操作（使用 Kibana Console）</h2>
+<p>打开 Kibana Dev Tools，可以输入如下命令：</p>
+<h3 id="插入文档indexing">插入文档（Indexing）</h3>
+<pre><code class="language-bash">POST /my_index/_doc
+{
+  &quot;name&quot;: &quot;Alice&quot;,
+  &quot;age&quot;: 30,
+  &quot;skills&quot;: [&quot;Java&quot;, &quot;Elasticsearch&quot;]
+}
+</code></pre>
+<h3 id="查询文档search">查询文档（Search）</h3>
+<pre><code class="language-bash">GET /my_index/_search
+{
+  &quot;query&quot;: {
+    &quot;match&quot;: {
+      &quot;name&quot;: &quot;Alice&quot;
+    }
+  }
+}
+</code></pre>
+<h3 id="获取文档get">获取文档（Get）</h3>
+<pre><code class="language-bash">GET /my_index/_doc/1
+</code></pre>
+<h3 id="删除文档">删除文档</h3>
+<pre><code class="language-bash">DELETE /my_index/_doc/1
+</code></pre>
+<hr>
+<h2 id="第四步学习-kibana-可视化">📊 第四步：学习 Kibana 可视化</h2>
+<p>Kibana 是 Elasticsearch 的可视化界面，主要功能包括：</p>
+<ul>
+<li>数据可视化（创建图表、仪表盘）</li>
+<li>Dev Tools（发送 API 请求）</li>
+<li>Discover（浏览数据）</li>
+<li>管理索引模式（Index Pattern）</li>
+</ul>
+<h3 id="第一次使用建议">第一次使用建议：</h3>
+<ol>
+<li>在 Kibana 中创建 Index Pattern，如 <code>my_index*</code></li>
+<li>使用 Discover 浏览你插入的数据</li>
+<li>尝试创建一个可视化图表，如柱状图或折线图</li>
+</ol>
+<hr>
+<h2 id="第五步进阶建议">📚 第五步：进阶建议</h2>
+<p>等你掌握了基本操作后，建议继续学习以下内容：</p>
+<ul>
+<li><strong>布尔查询、过滤器查询</strong></li>
+<li><strong>聚合分析（Aggregations）</strong></li>
+<li><strong>全文检索 vs 精确匹配（<code>text</code> vs <code>keyword</code>）</strong></li>
+<li><strong>分析器（Analyzer）和分词（Tokenizer）</strong></li>
+<li><strong>索引生命周期管理（ILM）</strong></li>
+<li><strong>使用 Logstash/Beats 输入数据</strong></li>
+</ul>
+<hr>
+<h2 id="示例练习项目建议动手">🗂 示例练习项目（建议动手）</h2>
+<ul>
+<li>创建一个包含“用户简历信息”的索引，字段如 <code>name</code>、<code>age</code>、<code>skills</code>、<code>experience_years</code>。</li>
+<li>插入几条文档数据。</li>
+<li>用 match 查询技能为“Python”的用户。</li>
+<li>创建一个柱状图展示技能分布。</li>
+</ul>
+<hr>
+<p>要查询 <code>lili_goods</code> 索引查询 <code>lili_goods</code> 索引的数据，你可以通过 Kibana 的 <strong>Dev Tools</strong> 或直接使用 Elasticsearch 的 API。下面是几种常见的查询方式。</p>
+<h3 id="1-查询所有文档">1. <strong>查询所有文档</strong></h3>
+<p>如果你想查询 <code>lili_goods</code> 索引中的所有文档，可以使用如下的简单查询：</p>
+<pre><code class="language-bash">GET /lili_goods/_search
+</code></pre>
+<p>这会返回 <code>lili_goods</code> 索引中的所有文档，默认只返回前 10 条数据。</p>
+<h3 id="2-查询特定字段">2. <strong>查询特定字段</strong></h3>
+<p>如果你只想查询某个字段，或者用特定的关键词来查找数据，例如查找商品名称包含某个关键词的文档：</p>
+<pre><code class="language-bash">GET /lili_goods/_search
+{
+  &quot;query&quot;: {
+    &quot;match&quot;: {
+      &quot;product_name&quot;: &quot;some_keyword&quot;
+    }
+  }
+}
+</code></pre>
+<p>这里 <code>product_name</code> 是假设的字段名，<code>some_keyword</code> 是你要匹配的关键词。你可以根据实际的字段名和关键词进行修改。</p>
+<h3 id="3-分页查询获取更多文档">3. <strong>分页查询（获取更多文档）</strong></h3>
+<p>如果 <code>lili_goods</code> 索引有很多文档，默认返回 10 条，你可以使用 <code>size</code> 和 <code>from</code> 来控制分页查询。例如，获取第 2 页的 10 条记录：</p>
+<pre><code class="language-bash">GET /lili_goods/_search
+{
+  &quot;size&quot;: 10,
+  &quot;from&quot;: 10
+}
+</code></pre>
+<p>这会跳过前 10 条记录，返回第 11 到第 20 条记录。</p>
+<h3 id="4-查询特定条件的文档例如价格范围">4. <strong>查询特定条件的文档（例如价格范围）</strong></h3>
+<p>假设你想根据商品价格查询，以下是一个查询示例，查找价格在 50 到 100 之间的商品：</p>
+<pre><code class="language-bash">GET /lili_goods/_search
+{
+  &quot;query&quot;: {
+    &quot;range&quot;: {
+      &quot;price&quot;: {
+        &quot;gte&quot;: 50,
+        &quot;lte&quot;: 100
+      }
+    }
+  }
+}
+</code></pre>
+<p>这里 <code>price</code> 是字段名，<code>gte</code> 和 <code>lte</code> 表示价格的范围。</p>
+<h3 id="5-查询所有文档并返回特定字段">5. <strong>查询所有文档并返回特定字段</strong></h3>
+<p>如果你只关心某些字段，而不需要返回整个文档，可以使用 <code>_source</code> 来指定返回的字段：</p>
+<pre><code class="language-bash">GET /lili_goods/_search
+{
+  &quot;_source&quot;: [&quot;product_name&quot;, &quot;price&quot;, &quot;stock&quot;],
+  &quot;query&quot;: {
+    &quot;match_all&quot;: {}
+  }
+}
+</code></pre>
+<p>这会返回所有文档，但只包含 <code>product_name</code>、<code>price</code> 和 <code>stock</code> 字段。</p>
+<h3 id="6-查看索引的映射mapping">6. <strong>查看索引的映射（Mapping）</strong></h3>
+<p>如果你不知道 <code>lili_goods</code> 索引的字段结构，可以先查看它的映射，了解字段类型和配置：</p>
+<pre><code class="language-bash">GET /lili_goods/_mapping
+</code></pre>
+<p>这会返回索引的映射信息，告诉你各字段的数据类型及是否支持搜索。</p>
+<hr>
+<h3 id="小结">小结</h3>
+<p>通过这些查询，你可以灵活地查询 <code>lili_goods</code> 索引中的数据。如果你需要根据特定条件过滤、分页或指定字段等，使用 Elasticsearch 强大的查询语法进行操作。</p>
+<p>你可以先试试这些查询，如果有其他问题或更复杂的查询需求，随时告诉我！</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[数据脱敏]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/shu-ju-tuo-min/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/shu-ju-tuo-min/">
+        </link>
+        <updated>2025-05-19T02:06:49.000Z</updated>
+        <content type="html"><![CDATA[<h1 id="数据脱敏的这6种方案真香"><a href="https://www.cnblogs.com/12lisu/p/18883200" title="发布于 2025-05-19 09:23">数据脱敏的这6种方案，真香！</a></h1>
+<h2 id="前言">前言</h2>
+<p>某次新来的同事，在开发环境执行了这样的代码：</p>
+<pre><code class="language-java">// 反例：直接将生产数据同步到测试环境  
+public void syncUserToTest(User user) {  
+    testDB.insert(user); // 包含手机号、身份证等敏感字段  
+}
+</code></pre>
+<p>直接将生产的数据，比如：手机号、身份证等敏感字段，同步到了测试环境。</p>
+<p>结果1天后，受到了公司领导的批评。</p>
+<p>这个案例揭示了数据脱敏的极端重要性。</p>
+<p>这篇文章给大家分享6种常用的数据脱敏方案，希望对你会有所帮助。</p>
+<h2 id="方案1字符串替换青铜级">方案1：字符串替换（青铜级）</h2>
+<p><strong>技术原理</strong>：通过正则表达式对敏感数据进行部分字符替换</p>
+<p><strong>典型代码实现</strong>：</p>
+<pre><code class="language-java">public class StringMasker {  
+    // 手机号脱敏：13812345678 → 138****5678  
+    public static String maskMobile(String mobile) {  
+        return mobile.replaceAll(&quot;(\\d{3})\\d{4}(\\d{4})&quot;, &quot;$1****$2&quot;);  
+    }  
+
+    // 身份证脱敏：110101199003077777 → 1101********7777  
+    public static String maskIdCard(String idCard) {  
+        if (idCard.length() == 18) {  
+            return idCard.replaceAll(&quot;(\\d{4})\\d{10}(\\w{4})&quot;, &quot;$1****$2&quot;);  
+        }  
+        return idCard; // 处理15位旧身份证  
+    }  
+}
+</code></pre>
+<p>使用正则表达式将关键字字段替换成了*</p>
+<p><strong>适用场景对比</strong>：</p>
+<figure data-type="image" tabindex="1"><img src="https://files.mdnice.com/user/5303/eaf2551d-6045-4dc5-aeb7-3a4a04c642b2.png" alt="" loading="lazy"></figure>
+<p><strong>优缺点分析</strong>：</p>
+<ul>
+<li>✅ 优点：实现简单、性能高（时间复杂度O(n)）</li>
+<li>❌ 缺点：
+<ul>
+<li>无法恢复原始数据</li>
+<li>正则表达式需考虑多国数据格式差异</li>
+<li>存在模式被破解风险（如固定位置替换）</li>
+</ul>
+</li>
+</ul>
+<h2 id="方案2加密算法白银级">方案2：加密算法（白银级）</h2>
+<p><strong>加密算法选型</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>算法类型</th>
+<th>代表算法</th>
+<th>特点</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>对称加密</td>
+<td>AES</td>
+<td>加解密快，密钥管理复杂</td>
+<td>支付信息存储</td>
+</tr>
+<tr>
+<td>非对称加密</td>
+<td>RSA</td>
+<td>速度慢，安全性高</td>
+<td>密钥交换</td>
+</tr>
+<tr>
+<td>国密算法</td>
+<td>SM4</td>
+<td>符合国家标准</td>
+<td>政府/金融系统</td>
+</tr>
+</tbody>
+</table>
+<p><strong>完整实现示例</strong>：</p>
+<pre><code class="language-java">public class AESEncryptor {  
+    private static final String ALGORITHM = &quot;AES/GCM/NoPadding&quot;;  
+    private static final int TAG_LENGTH = 128; // 认证标签长度  
+
+    public static String encrypt(String plaintext, SecretKey key) {  
+        byte[] iv = new byte[12]; // GCM推荐12字节IV  
+        SecureRandom random = new SecureRandom();  
+        random.nextBytes(iv);  
+
+        Cipher cipher = Cipher.getInstance(ALGORITHM);  
+        cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH, iv));  
+
+        byte[] ciphertext = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));  
+        return Base64.getEncoder().encodeToString(iv) + &quot;:&quot; +  
+               Base64.getEncoder().encodeToString(ciphertext);  
+    }  
+
+    // 解密方法类似...  
+}
+</code></pre>
+<p><strong>密钥管理方案对比</strong>：</p>
+<figure data-type="image" tabindex="2"><img src="https://files.mdnice.com/user/5303/b907b557-bbf6-4406-9d89-3ba9e1c93a0f.png" alt="" loading="lazy"></figure>
+<h2 id="方案3数据遮蔽黄金级">方案3：数据遮蔽（黄金级）</h2>
+<p><strong>数据库层实现数据遮蔽</strong>：</p>
+<pre><code class="language-sql">-- 创建脱敏视图  
+CREATE VIEW masked_customers AS  
+SELECT  
+    id,  
+    CONCAT(SUBSTR(name,1,1), '***') AS name,  
+    CONCAT(SUBSTR(mobile,1,3), '****', SUBSTR(mobile,8,4)) AS mobile  
+FROM customers;  
+
+-- 使用列级权限控制  
+GRANT SELECT (id, name, mobile) ON masked_customers TO test_user;
+</code></pre>
+<p>创建数据脱敏视图，在视图中将关键字段做遮蔽。</p>
+<p>然后在后面需要用到这些字段的代码，需要统一从视图中查询数据。</p>
+<p><strong>代理层实现（ShardingSphere示例）</strong>：</p>
+<pre><code class="language-yml">rules:  
+- !MASK  
+  tables:  
+    user:  
+      columns:  
+        phone:  
+          maskAlgorithm: phone_mask  
+  maskAlgorithms:  
+    phone_mask:  
+      type: MD5  
+      props:  
+        salt: abcdefg123456
+</code></pre>
+<p><strong>性能影响测试数据</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>数据量</th>
+<th>原始查询(ms)</th>
+<th>遮蔽查询(ms)</th>
+<th>性能损耗</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10万</td>
+<td>120</td>
+<td>145</td>
+<td>20.8%</td>
+</tr>
+<tr>
+<td>100万</td>
+<td>980</td>
+<td>1150</td>
+<td>17.3%</td>
+</tr>
+<tr>
+<td>1000万</td>
+<td>10500</td>
+<td>12200</td>
+<td>16.2%</td>
+</tr>
+</tbody>
+</table>
+<h2 id="方案4数据替换铂金级">方案4：数据替换（铂金级）</h2>
+<p>将原始数据和脱敏的数据保存到cache中，方便后面快速的做转换。</p>
+<p><strong>映射表设计</strong>：</p>
+<pre><code class="language-java">// 使用Guava Cache实现LRU缓存  
+LoadingCache&lt;String, String&gt; dataMapping = CacheBuilder.newBuilder()  
+    .maximumSize(100000)  
+    .expireAfterAccess(30, TimeUnit.MINUTES)  
+    .build(new CacheLoader&lt;String, String&gt;() {  
+        public String load(String key) {  
+            return UUID.randomUUID().toString().replace(&quot;-&quot;, &quot;&quot;);  
+        }  
+    });  
+
+public String replaceData(String original) {  
+    return dataMapping.get(original);  
+}
+</code></pre>
+<p><strong>替换流程</strong>：</p>
+<figure data-type="image" tabindex="3"><img src="https://files.mdnice.com/user/5303/f7553936-87d1-47d8-ac6c-b7e0c46af8de.png" alt="" loading="lazy"></figure>
+<h2 id="方案5动态脱敏钻石级">方案5：动态脱敏（钻石级）</h2>
+<p><strong>应用层实现（Spring AOP示例）</strong>：</p>
+<pre><code class="language-java">@Aspect  
+@Component  
+public class DataMaskAspect {  
+
+    @Around(&quot;@annotation(requiresMasking)&quot;)  
+    public Object maskData(ProceedingJoinPoint joinPoint, RequiresMasking requiresMasking) throws Throwable {  
+        Object result = joinPoint.proceed();  
+        return mask(result, requiresMasking.type());  
+    }  
+
+    private Object mask(Object data, MaskType type) {  
+        if (data instanceof User) {  
+            User user = (User) data;  
+            switch(type) {  
+                case MOBILE:  
+                    user.setMobile(MaskUtil.maskMobile(user.getMobile()));  
+                    break;  
+                case ID_CARD:  
+                    user.setIdCard(MaskUtil.maskIdCard(user.getIdCard()));  
+                    break;  
+            }  
+        }  
+        return data;  
+    }  
+}
+</code></pre>
+<p>在需要做数据脱敏的字段上技术RequiresMasking注解，然后在Spring的AOP拦截器中，通过工具类动态实现数据的脱敏。</p>
+<p><strong>数据库代理层架构</strong>：</p>
+<figure data-type="image" tabindex="4"><img src="https://files.mdnice.com/user/5303/2ae40c60-167d-44a3-a7f0-f5478f275dd4.png" alt="" loading="lazy"></figure>
+<h2 id="方案6k匿名化王者级">方案6：K匿名化（王者级）</h2>
+<h3 id="1-通俗原理解释">1. 通俗原理解释</h3>
+<p>假设医院发布就诊数据：</p>
+<table>
+<thead>
+<tr>
+<th>年龄</th>
+<th>性别</th>
+<th>疾病</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>25</td>
+<td>男</td>
+<td>感冒</td>
+</tr>
+<tr>
+<td>25</td>
+<td>男</td>
+<td>发烧</td>
+</tr>
+<tr>
+<td>25</td>
+<td>男</td>
+<td>骨折</td>
+</tr>
+</tbody>
+</table>
+<p>当K=3时，攻击者无法确定具体某人的疾病，因为3人都具有相同特征（25岁男性）。</p>
+<h3 id="2-实现步骤">2. 实现步骤</h3>
+<figure data-type="image" tabindex="5"><img src="https://files.mdnice.com/user/5303/5a643612-65f3-44e2-82ce-ff9f754e0173.png" alt="" loading="lazy"></figure>
+<p><strong>医疗数据泛化示例</strong>：</p>
+<pre><code class="language-java">public class KAnonymity {  
+
+    // 年龄泛化：精确值→范围  
+    public static String generalizeAge(int age) {  
+        int range = 10; // K=10  
+        int lower = (age / range) * range;  
+        int upper = lower + range - 1;  
+        return lower + &quot;-&quot; + upper;  
+    }  
+}
+</code></pre>
+<p>假设range是K值，等于10。</p>
+<p>generalizeAge方法中，通过一定的算法，将年龄的精确值，泛化成一个区间范围。</p>
+<p>输入年龄28，返回20-29。</p>
+<p><strong>K值选择原则</strong>：</p>
+<figure data-type="image" tabindex="6"><img src="https://files.mdnice.com/user/5303/24272300-2940-4f80-8897-4e75c2a70488.png" alt="" loading="lazy"></figure>
+<h2 id="总结">总结</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>安全性</th>
+<th>性能</th>
+<th>可逆性</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>字符串替换</td>
+<td>★★</td>
+<td>★★★★</td>
+<td>不可逆</td>
+<td>日志/展示</td>
+</tr>
+<tr>
+<td>加密算法</td>
+<td>★★★★</td>
+<td>★★</td>
+<td>可逆</td>
+<td>支付信息存储</td>
+</tr>
+<tr>
+<td>数据遮蔽</td>
+<td>★★★</td>
+<td>★★★</td>
+<td>部分可逆</td>
+<td>数据库查询</td>
+</tr>
+<tr>
+<td>数据替换</td>
+<td>★★★★</td>
+<td>★★</td>
+<td>可逆</td>
+<td>测试数据生成</td>
+</tr>
+<tr>
+<td>动态脱敏</td>
+<td>★★★★</td>
+<td>★★★</td>
+<td>动态可控</td>
+<td>生产环境查询</td>
+</tr>
+<tr>
+<td>K匿名化</td>
+<td>★★★★★</td>
+<td>★</td>
+<td>不可逆</td>
+<td>医疗/位置数据</td>
+</tr>
+</tbody>
+</table>
+<p>下面是某电商平台各方案的使用占比：<br>
+<img src="https://files.mdnice.com/user/5303/bf51a958-0455-4fdb-9119-f2e1ce6c8d57.png" alt="" loading="lazy"></p>
+<p>** 3个核心建议**：</p>
+<ol>
+<li><strong>数据分类分级</strong>：不同级别数据采用不同脱敏策略</li>
+<li><strong>定期审计</strong>：使用自动化工具扫描敏感数据泄露</li>
+<li><strong>最小化原则</strong>：能不收集的敏感数据坚决不收集</li>
+</ol>
+<p><strong>灵魂拷问</strong>：<br>
+当黑客攻破你的数据库时，里面的数据是否像诺基亚功能机一样&quot;防摔&quot;？</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[关键字读书法 这套方法来读《打造超人大脑》这本书]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/guan-jian-zi-du-shu-fa-zhe-tao-fang-fa-lai-du-lesslessda-zao-chao-ren-da-nao-greatergreater-zhe-ben-shu/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/guan-jian-zi-du-shu-fa-zhe-tao-fang-fa-lai-du-lesslessda-zao-chao-ren-da-nao-greatergreater-zhe-ben-shu/">
+        </link>
+        <updated>2025-05-16T09:37:41.000Z</updated>
+        <content type="html"><![CDATA[<p>关键字读书法 这套方法来读《打造超人大脑》这本书。</p>
+<hr>
+<h2 id="step-1找出你最想问这本书的一个问题">Step 1：找出你最想问这本书的一个问题</h2>
+<ul>
+<li><strong>书名</strong>：《打造超人大脑》</li>
+<li><strong>主要问题</strong>：如何通过科学的方法提升大脑的记忆力和思考能力？</li>
+<li><strong>动机</strong>：我希望能找到实用且有效的技巧，帮助自己在学习和工作中更高效地利用大脑，提升记忆和创造力。</li>
+</ul>
+<hr>
+<h2 id="step-2限时-30-分钟快速摘出-16-个关键字">Step 2：限时 30 分钟快速摘出 16 个关键字</h2>
+<p>假设我快速浏览了这本书，摘录了以下16个关键字：</p>
+<table>
+<thead>
+<tr>
+<th>关键字1</th>
+<th>关键字2</th>
+<th>关键字3</th>
+<th>关键字4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>记忆宫殿</td>
+<td>注意力训练</td>
+<td>信息编码</td>
+<td>大脑可塑性</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>关键字5</th>
+<th>关键字6</th>
+<th>关键字7</th>
+<th>关键字8</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>速读技巧</td>
+<td>复述法</td>
+<td>联想记忆</td>
+<td>习惯养成</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>关键字9</th>
+<th>关键字10</th>
+<th>关键字11</th>
+<th>关键字12</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>多感官学习</td>
+<td>睡眠质量</td>
+<td>大脑休息</td>
+<td>情绪管理</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>关键字13</th>
+<th>关键字14</th>
+<th>关键字15</th>
+<th>关键字16</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>脑波调节</td>
+<td>创意思维</td>
+<td>目标设定</td>
+<td>持续练习</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="step-3针对这16个关键字整理出3-5个重点">Step 3：针对这16个关键字，整理出3-5个重点</h2>
+<ol>
+<li>
+<p><strong>记忆与信息处理技巧</strong><br>
+通过记忆宫殿、联想记忆、信息编码和复述法，提升大脑对信息的存储和提取能力。</p>
+</li>
+<li>
+<p><strong>注意力与习惯培养</strong><br>
+训练注意力，养成良好的学习习惯，利用速读技巧提高信息获取效率。</p>
+</li>
+<li>
+<p><strong>大脑健康与休息</strong><br>
+保持良好的睡眠质量和大脑休息，管理情绪，促进大脑可塑性和脑波调节。</p>
+</li>
+<li>
+<p><strong>多感官与创意思维</strong><br>
+利用多感官学习激发创意思维，结合目标设定和持续练习，推动大脑能力的全面提升。</p>
+</li>
+</ol>
+<hr>
+<h2 id="step-4复述心得">Step 4：复述心得</h2>
+<p>我会这样向朋友复述这本书的核心内容：</p>
+<blockquote>
+<p>《打造超人大脑》这本书教我们如何科学地提升大脑的记忆力和思考能力。书中介绍了很多实用技巧，比如用记忆宫殿和联想记忆来帮助记忆，用复述法加深理解。它还强调注意力训练和养成良好习惯的重要性，比如速读和专注练习。除此之外，书里还提醒我们要保证充足的睡眠和大脑休息，管理好情绪，这样大脑才能保持高效的可塑性。最后，多感官学习和创意思维的培养也很关键，结合明确的目标和持续练习，能让我们的大脑变得更强大。</p>
+</blockquote>
+<hr>
+<p>好的！下面我将基于《打造超人大脑》这本书的主题，详细介绍之前提到的16个关键字，帮助你更深入理解每个关键字背后的含义和应用。</p>
+<hr>
+<h1 id="打造超人大脑16个关键字详细介绍">《打造超人大脑》16个关键字详细介绍</h1>
+<table>
+<thead>
+<tr>
+<th>关键字</th>
+<th>详细介绍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>记忆宫殿</strong></td>
+<td>一种古老且有效的记忆技巧，通过将信息与熟悉的空间场景（如房间、建筑）联系起来，增强记忆的联想和提取。</td>
+</tr>
+<tr>
+<td><strong>注意力训练</strong></td>
+<td>通过冥想、专注练习等方法提升大脑的注意力集中能力，减少分心，提高学习和工作效率。</td>
+</tr>
+<tr>
+<td><strong>信息编码</strong></td>
+<td>将新信息转化为大脑更容易存储和理解的形式，比如用图像、故事或符号来编码抽象信息。</td>
+</tr>
+<tr>
+<td><strong>大脑可塑性</strong></td>
+<td>大脑适应和重组自身结构与功能的能力，强调通过训练和环境刺激可以持续改善认知能力。</td>
+</tr>
+<tr>
+<td><strong>速读技巧</strong></td>
+<td>通过训练眼睛和大脑快速捕捉和理解文字信息，提高阅读速度和理解力。</td>
+</tr>
+<tr>
+<td><strong>复述法</strong></td>
+<td>通过用自己的话复述所学内容，加深理解和记忆，促进知识内化。</td>
+</tr>
+<tr>
+<td><strong>联想记忆</strong></td>
+<td>利用已有知识和经验，将新信息与熟悉的事物联系起来，形成强烈的记忆钩子。</td>
+</tr>
+<tr>
+<td><strong>习惯养成</strong></td>
+<td>通过重复和环境设计，建立有利于大脑发展的良好习惯，如定时学习、规律作息。</td>
+</tr>
+<tr>
+<td><strong>多感官学习</strong></td>
+<td>利用视觉、听觉、触觉等多种感官同时参与学习，增强信息的多维度编码和记忆。</td>
+</tr>
+<tr>
+<td><strong>睡眠质量</strong></td>
+<td>睡眠对大脑记忆巩固和恢复至关重要，保证充足且高质量的睡眠能显著提升认知功能。</td>
+</tr>
+<tr>
+<td><strong>大脑休息</strong></td>
+<td>适当的休息和放松帮助大脑恢复能量，避免过度疲劳，提升后续学习和工作效率。</td>
+</tr>
+<tr>
+<td><strong>情绪管理</strong></td>
+<td>控制和调节情绪，减少压力和焦虑对大脑功能的负面影响，促进积极的认知状态。</td>
+</tr>
+<tr>
+<td><strong>脑波调节</strong></td>
+<td>通过冥想、音乐或特定训练调整脑电波频率，促进放松、专注或创造力的状态。</td>
+</tr>
+<tr>
+<td><strong>创意思维</strong></td>
+<td>通过发散思维、跨界联想等方法激发创新能力，提升解决问题的多样性和深度。</td>
+</tr>
+<tr>
+<td><strong>目标设定</strong></td>
+<td>明确具体且可衡量的目标，激发动力和方向感，帮助大脑集中资源完成任务。</td>
+</tr>
+<tr>
+<td><strong>持续练习</strong></td>
+<td>反复训练和实践，巩固技能和知识，利用“刻意练习”提升大脑的专业能力和效率。</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="关键字之间的联系与应用">关键字之间的联系与应用</h1>
+<p>这些关键字其实是围绕着<strong>如何提升大脑的记忆力、专注力、学习效率和创造力</strong>展开的。它们可以分为几个核心模块：</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>关键字</th>
+<th>作用说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>记忆与学习技巧</strong></td>
+<td>记忆宫殿、信息编码、复述法、联想记忆、多感官学习</td>
+<td>提升信息的存储和提取能力</td>
+</tr>
+<tr>
+<td><strong>注意力与习惯</strong></td>
+<td>注意力训练、速读技巧、习惯养成、持续练习</td>
+<td>增强专注力和学习效率</td>
+</tr>
+<tr>
+<td><strong>大脑健康管理</strong></td>
+<td>睡眠质量、大脑休息、情绪管理、脑波调节</td>
+<td>保障大脑功能的最佳状态</td>
+</tr>
+<tr>
+<td><strong>思维与动力</strong></td>
+<td>创意思维、目标设定</td>
+<td>激发创新能力和行动动力</td>
+</tr>
+<tr>
+<td><strong>大脑适应性</strong></td>
+<td>大脑可塑性</td>
+<td>说明大脑通过训练和环境刺激不断进化的能力</td>
+</tr>
+</tbody>
+</table>
+<hr>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[如何抽象出领域对象/业务对象]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/ru-he-chou-xiang-chu-ling-yu-dui-xiang-ye-wu-dui-xiang/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/ru-he-chou-xiang-chu-ling-yu-dui-xiang-ye-wu-dui-xiang/">
+        </link>
+        <updated>2025-05-12T09:54:33.000Z</updated>
+        <content type="html"><![CDATA[<p>如何抽象出领域对象/业务对象<br>
+目录<br>
+背景和价值<br>
+方案1 针对已经梳理出来业务流程<br>
+方案2： 使用DDD的事件风暴（还没梳理出流程）<br>
+参考资料<br>
+背景和价值<br>
+方案1 针对已经梳理出来业务流程<br>
+假如已经针对各个场景，把业务流程，任务，步骤，规则梳理好。流程的例子如下</p>
+<p><img src="https://yuzhupeng.top/myblogs//post-images/1747043699930.png" alt="" loading="lazy"><br>
+比对各个L3流程下的子流程的业务实体<br>
+• 对比上述共性业务在业务流程中输出的业务实体，判定业务实体的差异性以及是否能<br>
+够抽取共性的业务实体</p>
+<p>方案2： 使用DDD的事件风暴（还没梳理出流程）<br>
+假如一开始一片空白。领域模型是什么叫什么有什么你是完全不知道的。 所以要先梳理业务流程/用户旅程。 在流程的关键节点分析可能产生的事件/状态改变。 对产生的事件命名和排除歧义就是建模的第一步。 先分析出系统应该存在了那些模型。</p>
+<p>然后在对模型细化，分析模型应该有哪些内容。哪些字段 子对象 子值对象。 前期规划的模型不对太大那就再调整么。 没有人能一次一个时间点就设计的完美的。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[mcp 配置 结合大模型，AI操控 浏览器，文件系统 ，结合官方文档]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/shi-yong-mcp/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/shi-yong-mcp/">
+        </link>
+        <updated>2025-05-09T06:13:42.000Z</updated>
+        <content type="html"><![CDATA[<p>{<br>
+&quot;mcpServers&quot;: {<br>
+&quot;context7-mcp&quot;: {<br>
+&quot;isActive&quot;: true,<br>
+&quot;command&quot;: &quot;cmd&quot;,<br>
+&quot;args&quot;: [<br>
+&quot;/c&quot;,<br>
+&quot;npx&quot;,<br>
+&quot;-y&quot;,<br>
+&quot;@smithery/cli@latest&quot;,<br>
+&quot;run&quot;,<br>
+&quot;@upstash/context7-mcp&quot;,<br>
+&quot;--key&quot;,<br>
+&quot;ecdff2bd-17e8-4d9d-81d1-fc2e388d8e3b&quot;<br>
+],<br>
+&quot;name&quot;: &quot;context7-mcp&quot;<br>
+},<br>
+&quot;playwright&quot;: {<br>
+&quot;isActive&quot;: true,<br>
+&quot;command&quot;: &quot;cmd&quot;,<br>
+&quot;args&quot;: [<br>
+&quot;/c&quot;,<br>
+&quot;npx&quot;,<br>
+&quot;-y&quot;,<br>
+&quot;@executeautomation/playwright-mcp-server&quot;<br>
+],<br>
+&quot;shell&quot;: true,<br>
+&quot;name&quot;: &quot;playwright&quot;<br>
+},<br>
+&quot;filesystem&quot;: {<br>
+&quot;isActive&quot;: true,<br>
+&quot;command&quot;: &quot;cmd&quot;,<br>
+&quot;args&quot;: [<br>
+&quot;/c&quot;,<br>
+&quot;npx&quot;,<br>
+&quot;-y&quot;,<br>
+&quot;@modelcontextprotocol/server-filesystem&quot;,<br>
+&quot;E:\Projcet\otherproject\mromroforwardgit\mroforward\mroforward&quot;<br>
+],<br>
+&quot;shell&quot;: true,<br>
+&quot;name&quot;: &quot;filesystem&quot;<br>
+},<br>
+&quot;server-sequential-thinking&quot;: {<br>
+&quot;isActive&quot;: true,<br>
+&quot;command&quot;: &quot;cmd&quot;,<br>
+&quot;args&quot;: [<br>
+&quot;/c&quot;,<br>
+&quot;npx&quot;,<br>
+&quot;-y&quot;,<br>
+&quot;@smithery/cli@latest&quot;,<br>
+&quot;run&quot;,<br>
+&quot;@smithery-ai/server-sequential-thinking&quot;,<br>
+&quot;--key&quot;,<br>
+&quot;ecdff2bd-17e8-4d9d-81d1-fc2e388d8e3b&quot;<br>
+],<br>
+&quot;shell&quot;: true,<br>
+&quot;name&quot;: &quot;server-sequential-thinking&quot;<br>
+}<br>
+}<br>
+}</p>
+<p>npm install -g @executeautomation/playwright-mcp-server</p>
+<p>npx -y @smithery/cli install @executeautomation/playwright-mcp-server --client cursor</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[数据转化为二进制及计算机内部处理的  用户端--服务器 完整过程]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/shu-ju-zhuan-hua-wei-er-jin-zhi-ji-ji-suan-ji-nei-bu-chu-li-de-yong-hu-duan-fu-wu-qi-wan-zheng-guo-cheng/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/shu-ju-zhuan-hua-wei-er-jin-zhi-ji-ji-suan-ji-nei-bu-chu-li-de-yong-hu-duan-fu-wu-qi-wan-zheng-guo-cheng/">
+        </link>
+        <updated>2025-05-09T02:45:13.000Z</updated>
+        <content type="html"><![CDATA[<h1 id="数据转化为二进制及计算机内部处理的-用户端-服务器-完整过程">数据转化为二进制及计算机内部处理的  用户端--服务器 完整过程</h1>
+<h2 id="1-用户输入转换为数字信号">1. 用户输入转换为数字信号</h2>
+<h3 id="键盘输入处理">键盘输入处理</h3>
+<ul>
+<li>用户按下键盘按键，触发按键下方的电路闭合</li>
+<li>键盘控制器检测到电路闭合，确定按键位置</li>
+<li>键盘控制器将按键转换为扫描码(Scan Code)</li>
+<li>扫描码通过USB/PS2等接口以电信号传输到主板</li>
+<li>主板上的I/O控制器接收信号并触发中断</li>
+</ul>
+<h3 id="触摸屏输入处理">触摸屏输入处理</h3>
+<ul>
+<li>触摸屏感应到电容变化或压力</li>
+<li>触摸屏控制器计算接触坐标和压力大小</li>
+<li>将坐标信息转换为数字信号传输到系统</li>
+</ul>
+<h2 id="2-操作系统级处理">2. 操作系统级处理</h2>
+<h3 id="中断处理">中断处理</h3>
+<ul>
+<li>CPU接收到I/O中断请求</li>
+<li>CPU暂停当前执行流程，保存上下文</li>
+<li>跳转到中断服务例程(ISR)</li>
+<li>操作系统内核的设备驱动程序处理中断</li>
+<li>输入设备驱动将原始信号解码为系统识别的输入事件</li>
+</ul>
+<h3 id="输入事件处理">输入事件处理</h3>
+<ul>
+<li>操作系统将输入事件放入事件队列</li>
+<li>窗口管理系统确定焦点应用程序</li>
+<li>事件通过IPC(进程间通信)机制传递给对应的应用程序</li>
+<li>前端应用程序从事件队列中获取输入事件</li>
+</ul>
+<h2 id="3-应用程序接收输入">3. 应用程序接收输入</h2>
+<h3 id="事件驱动架构">事件驱动架构</h3>
+<ul>
+<li>前端应用接收到输入事件</li>
+<li>事件被转化为高级事件（如keydown、click等）</li>
+<li>事件分发到对应的事件监听器</li>
+</ul>
+<h3 id="转化为程序内部数据">转化为程序内部数据</h3>
+<ul>
+<li>JavaScript引擎将用户输入转换为内部数据类型
+<ul>
+<li>文本输入被转换为字符串(String)类型</li>
+<li>数字输入被转换为数值(Number)类型</li>
+<li>日期输入被转换为日期(Date)对象</li>
+</ul>
+</li>
+<li>这些数据类型在内存中都有特定的二进制表示方式</li>
+</ul>
+<h2 id="4-内存中的二进制表示">4. 内存中的二进制表示</h2>
+<h3 id="字符串的二进制表示">字符串的二进制表示</h3>
+<ul>
+<li>使用UTF-8/UTF-16等编码，每个字符转为特定的字节序列</li>
+<li>例如：&quot;Hello&quot;在UTF-8中表示为：
+<ul>
+<li>H: 01001000</li>
+<li>e: 01100101</li>
+<li>l: 01101100</li>
+<li>l: 01101100</li>
+<li>o: 01101111</li>
+</ul>
+</li>
+</ul>
+<h3 id="数值的二进制表示">数值的二进制表示</h3>
+<ul>
+<li>整数使用补码表示</li>
+<li>浮点数使用IEEE 754标准表示
+<ul>
+<li>符号位(1位) + 指数位(8/11位) + 尾数位(23/52位)</li>
+</ul>
+</li>
+<li>例如：浮点数3.14的二进制表示为：<br>
+0x40091eb8 (单精度) 或 0x4009ae147ae147ae (双精度)</li>
+</ul>
+<h3 id="对象的内存结构">对象的内存结构</h3>
+<ul>
+<li>JavaScript对象在V8引擎中使用特定的内存布局</li>
+<li>包含属性表、原型指针、类型信息等元数据</li>
+<li>对象属性值以指针形式存储，指向实际数据</li>
+</ul>
+<h2 id="5-cpu执行过程">5. CPU执行过程</h2>
+<h3 id="指令获取和解码">指令获取和解码</h3>
+<ul>
+<li>程序计数器(PC)指向下一条指令的内存地址</li>
+<li>CPU通过总线向内存请求该地址的指令</li>
+<li>指令通过高速缓存层级(L1/L2/L3)加载到CPU</li>
+<li>指令被送入指令解码器进行解码</li>
+<li>解码器确定操作类型、源操作数和目标操作数</li>
+</ul>
+<h3 id="执行单元处理">执行单元处理</h3>
+<ul>
+<li>算术逻辑单元(ALU)执行计算操作
+<ul>
+<li>加法、减法、乘法、除法、位操作等</li>
+</ul>
+</li>
+<li>浮点运算单元(FPU)处理浮点数计算</li>
+<li>向量处理单元处理SIMD指令(并行数据处理)</li>
+</ul>
+<h3 id="寄存器操作">寄存器操作</h3>
+<ul>
+<li>通用寄存器存储临时数据和中间结果
+<ul>
+<li>在x86-64架构中包括RAX、RBX、RCX、RDX等</li>
+</ul>
+</li>
+<li>特殊寄存器执行特定功能
+<ul>
+<li>程序计数器(PC/RIP)：指向下一条指令</li>
+<li>栈指针(SP/RSP)：指向当前栈顶</li>
+<li>基址指针(BP/RBP)：指向当前栈帧基址</li>
+</ul>
+</li>
+<li>SIMD寄存器(XMM/YMM/ZMM)处理向量数据</li>
+</ul>
+<h3 id="内存访问">内存访问</h3>
+<ul>
+<li>CPU通过地址总线发送内存地址</li>
+<li>通过控制总线发送读/写信号</li>
+<li>通过数据总线读取或写入数据</li>
+<li>数据在缓存层级间移动：L1→L2→L3→主内存</li>
+</ul>
+<h2 id="6-高级代码转换为机器码">6. 高级代码转换为机器码</h2>
+<h3 id="javascript-jit编译">JavaScript JIT编译</h3>
+<ul>
+<li>JavaScript引擎(如V8)首先将代码解析为抽象语法树(AST)</li>
+<li>解释器(Ignition)将AST转换为字节码并执行</li>
+<li>热点代码由优化编译器(TurboFan)编译为机器码</li>
+<li>机器码直接在CPU上执行，提高性能</li>
+</ul>
+<h3 id="机器指令示例">机器指令示例</h3>
+<p>将JavaScript的<code>var sum = a + b;</code>可能编译为x86-64机器码：</p>
+<pre><code>mov rax, [rbp-16]    ; 将变量a的值加载到RAX寄存器
+add rax, [rbp-24]    ; 将变量b的值加到RAX寄存器
+mov [rbp-32], rax    ; 将结果存储到变量sum
+</code></pre>
+<p>这些机器指令以二进制形式存储:</p>
+<pre><code>48 8B 45 F0          ; mov rax, [rbp-16]
+48 03 45 E8          ; add rax, [rbp-24]
+48 89 45 E0          ; mov [rbp-32], rax
+</code></pre>
+<h2 id="7-网络通信的二进制处理">7. 网络通信的二进制处理</h2>
+<h3 id="数据序列化">数据序列化</h3>
+<ul>
+<li>JavaScript对象通过JSON.stringify()转换为JSON字符串</li>
+<li>JSON字符串按UTF-8编码转换为字节序列</li>
+<li>可能进行额外编码(如Base64)或压缩(gzip)</li>
+</ul>
+<h3 id="http请求封装">HTTP请求封装</h3>
+<ul>
+<li>将序列化数据封装到HTTP请求体</li>
+<li>添加HTTP头部(Content-Type, Content-Length等)</li>
+<li>整个HTTP请求按ASCII/UTF-8编码为字节序列</li>
+</ul>
+<h3 id="tcpip协议栈处理">TCP/IP协议栈处理</h3>
+<ul>
+<li>应用层数据被添加TCP头部(源端口、目标端口、序列号等)</li>
+<li>TCP段被添加IP头部(源IP、目标IP、协议类型等)</li>
+<li>IP数据包被添加以太网帧头部(MAC地址等)</li>
+<li>最终形成完整的二进制数据帧</li>
+</ul>
+<h2 id="8-服务器端接收与处理">8. 服务器端接收与处理</h2>
+<h3 id="网络接口处理">网络接口处理</h3>
+<ul>
+<li>服务器网卡接收电信号并转换为二进制数据</li>
+<li>验证数据帧校验和，确认完整性</li>
+<li>将数据包传递给操作系统网络栈</li>
+</ul>
+<h3 id="协议栈逆向解析">协议栈逆向解析</h3>
+<ul>
+<li>数据链路层：移除以太网帧头部</li>
+<li>网络层：解析IP头部，确认目标IP</li>
+<li>传输层：解析TCP头部，重组数据段，按序列号排序</li>
+<li>应用层：解析HTTP请求头和请求体</li>
+</ul>
+<h1 id="后端数据处理的详细流程">后端数据处理的详细流程</h1>
+<h2 id="1-网络边界处理">1. 网络边界处理</h2>
+<h3 id="防火墙与边界安全">防火墙与边界安全</h3>
+<ul>
+<li>数据包首先通过边界防火墙
+<ul>
+<li>基于规则集过滤不合法流量</li>
+<li>检查IP地址、端口号、协议类型</li>
+<li>执行状态检测，识别异常连接模式</li>
+<li>这些过滤规则以二进制表存储在内存中，由专用处理器或服务器CPU高速查询</li>
+</ul>
+</li>
+</ul>
+<h3 id="负载均衡器">负载均衡器</h3>
+<ul>
+<li>数据包到达负载均衡器(如F5、NGINX Plus、HAProxy)
+<ul>
+<li>检查TCP连接状态，维护会话表(二进制哈希表结构)</li>
+<li>根据算法(轮询、最少连接、IP哈希等)选择后端服务器</li>
+<li>可能执行SSL终止，将加密二进制流解密为明文</li>
+<li>将客户端二进制数据流转发到选定的应用服务器</li>
+<li>可能修改数据包头部，添加X-Forwarded-For等HTTP头信息</li>
+</ul>
+</li>
+</ul>
+<h3 id="cdn边缘节点">CDN边缘节点</h3>
+<ul>
+<li>对于静态资源请求，可能在CDN边缘节点处理
+<ul>
+<li>CDN节点维护二进制缓存文件和缓存键索引</li>
+<li>使用高效内存数据结构(如布隆过滤器)快速判断资源是否缓存</li>
+</ul>
+</li>
+</ul>
+<h2 id="2-web服务器层">2. Web服务器层</h2>
+<h3 id="web服务器处理nginxapache">Web服务器处理(Nginx/Apache)</h3>
+<ul>
+<li>Web服务器接收二进制TCP流并组装HTTP请求
+<ul>
+<li>二进制数据通过零拷贝技术高效传输，避免用户空间和内核空间的多次复制</li>
+<li>使用状态机解析HTTP协议，将二进制流解析为结构化请求对象</li>
+</ul>
+</li>
+<li>根据URL路由规则确定请求去向
+<ul>
+<li>路由表以树形或哈希表结构存储在内存中</li>
+<li>高效执行URL模式匹配算法</li>
+</ul>
+</li>
+<li>对于静态资源
+<ul>
+<li>直接从文件系统读取二进制文件</li>
+<li>可能应用压缩算法(gzip/brotli)将文件二进制内容实时压缩</li>
+<li>设置缓存头部后返回客户端</li>
+</ul>
+</li>
+<li>对于动态请求
+<ul>
+<li>通过FastCGI、uwsgi、AJP等协议转发给应用服务器</li>
+<li>这些协议有特定二进制格式，比HTTP更紧凑高效</li>
+</ul>
+</li>
+</ul>
+<h2 id="3-应用服务器层">3. 应用服务器层</h2>
+<h3 id="应用服务器tomcatjettyundertow">应用服务器(Tomcat/Jetty/Undertow)</h3>
+<ul>
+<li>接收来自Web服务器的二进制请求流
+<ul>
+<li>使用协议解析器将二进制数据转换为内部请求对象</li>
+<li>在Java中，二进制数据流通过ByteBuffer、InputStream等处理</li>
+</ul>
+</li>
+<li>应用容器初始化处理
+<ul>
+<li>创建ServletRequest/ServletResponse对象</li>
+<li>将HTTP参数从二进制UTF-8格式解码为Java字符串</li>
+<li>处理multipart/form-data等复杂二进制格式，解析文件上传</li>
+</ul>
+</li>
+</ul>
+<h3 id="中间件处理流程">中间件处理流程</h3>
+<h4 id="1-日志与监控中间件">1. 日志与监控中间件</h4>
+<ul>
+<li>记录请求二进制指标数据(时间戳、大小、延迟)</li>
+<li>采集性能数据，通过二进制协议传输到监控系统(如Prometheus)</li>
+</ul>
+<h4 id="2-网关中间件spring-cloud-gatewayzuul">2. 网关中间件(Spring Cloud Gateway/Zuul)</h4>
+<ul>
+<li>进一步路由请求到微服务</li>
+<li>执行流量控制和断路保护
+<ul>
+<li>使用令牌桶算法(以二进制计数器实现)限流</li>
+<li>使用滑动窗口(环形二进制缓冲区)统计错误率</li>
+</ul>
+</li>
+<li>请求/响应转换
+<ul>
+<li>可能在不同协议间转换(HTTP/gRPC/AMQP)</li>
+<li>gRPC使用Protocol Buffers二进制格式，比JSON更紧凑</li>
+</ul>
+</li>
+</ul>
+<h4 id="3-认证授权中间件">3. 认证授权中间件</h4>
+<ul>
+<li>解析认证令牌(JWT/OAuth)
+<ul>
+<li>JWT是Base64编码的二进制数据块</li>
+<li>使用密码学算法(如HMAC-SHA256)验证签名部分</li>
+<li>密钥以安全二进制形式存储在密钥管理系统</li>
+</ul>
+</li>
+<li>处理会话状态
+<ul>
+<li>基于Cookie/Session的认证将SessionID转换为二进制服务器状态</li>
+<li>Redis等会话存储将对象序列化为二进制数据(可能使用Java序列化或MessagePack)</li>
+</ul>
+</li>
+</ul>
+<h2 id="4-java框架处理以spring为例">4. Java框架处理(以Spring为例)</h2>
+<h3 id="请求处理链路">请求处理链路</h3>
+<h4 id="1-servlet过滤器链filter-chain">1. Servlet过滤器链(Filter Chain)</h4>
+<ul>
+<li>过滤器按顺序处理二进制请求流</li>
+<li>字符编码过滤器将二进制数据转换为指定字符集</li>
+<li>压缩过滤器可能解压gzip/deflate编码的请求体</li>
+<li>CORS过滤器处理跨域头部</li>
+<li>安全过滤器(如Spring Security)验证认证信息
+<ul>
+<li>以二进制形式计算请求摘要，验证请求完整性</li>
+<li>密码以加盐哈希二进制形式存储和比对</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-spring-mvc处理流程">2. Spring MVC处理流程</h4>
+<ul>
+<li>DispatcherServlet接收请求
+<ul>
+<li>基于HandlerMapping找到对应的Controller</li>
+<li>这种映射使用反射机制，在方法调用时:
+<ol>
+<li>在方法区(内存)读取类的二进制字节码</li>
+<li>创建方法调用栈(二进制内存区域)</li>
+<li>压入方法参数</li>
+</ol>
+</li>
+</ul>
+</li>
+<li>请求体转换
+<ul>
+<li>HttpMessageConverter将二进制请求体转换为Java对象</li>
+<li>对于JSON，Jackson库将UTF-8二进制解析为JSON树，再映射到Java对象
+<ul>
+<li>字段名解析为Unicode字符，与Java类字段匹配</li>
+<li>基本类型(数字、布尔值)从二进制表示转换为Java类型</li>
+<li>使用ASM库进行高效二进制级别的类操作</li>
+</ul>
+</li>
+<li>对于XML，使用SAX/DOM解析器将二进制XML解析为对象</li>
+<li>对于二进制协议(Protocol Buffers/Avro)，使用专门解码器</li>
+</ul>
+</li>
+</ul>
+<h4 id="3-参数验证层">3. 参数验证层</h4>
+<ul>
+<li>Bean Validation(JSR 380)验证参数
+<ul>
+<li>验证规则以注解元数据形式存储在类定义中</li>
+<li>验证器在运行时通过反射读取这些二进制元数据</li>
+</ul>
+</li>
+</ul>
+<h4 id="4-业务逻辑处理service层">4. 业务逻辑处理(@Service层)</h4>
+<ul>
+<li>应用业务规则处理数据</li>
+<li>Spring的AOP在字节码级别织入横切关注点
+<ul>
+<li>使用字节码增强技术(如CGLIB)动态生成代理类的二进制代码</li>
+<li>在方法调用前后插入通知代码(事务、缓存、日志等)</li>
+</ul>
+</li>
+</ul>
+<h2 id="5-数据访问层">5. 数据访问层</h2>
+<h3 id="orm框架hibernatejpamybatis">ORM框架(Hibernate/JPA/MyBatis)</h3>
+<h4 id="1-对象-关系映射过程">1. 对象-关系映射过程</h4>
+<ul>
+<li>Java对象通过反射机制转换为SQL
+<ul>
+<li>对象字段值通过JDBC转换为数据库理解的二进制格式</li>
+<li>比如Java的int(32位二进制)转为数据库的INTEGER类型</li>
+<li>字符串转为VARCHAR时使用特定字符集编码为二进制</li>
+</ul>
+</li>
+<li>PreparedStatement处理
+<ul>
+<li>查询参数被编码为二进制格式，与SQL语句分离</li>
+<li>防止SQL注入(避免攻击者构造恶意二进制字符串)</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-jdbc二进制数据传输">2. JDBC二进制数据传输</h4>
+<ul>
+<li>JDBC驱动将SQL命令转换为数据库通信协议的二进制格式
+<ul>
+<li>MySQL协议: 命令代码(1字节)+SQL语句(二进制)</li>
+<li>PostgreSQL协议: 消息类型(1字节)+长度(4字节)+二进制内容</li>
+</ul>
+</li>
+<li>通过TCP/IP套接字发送二进制命令包</li>
+<li>接收二进制结果集
+<ul>
+<li>结果集以特定二进制格式返回(列数、类型信息、行数据)</li>
+<li>JDBC驱动将二进制结果解析为ResultSet对象</li>
+<li>列值从数据库二进制格式转换为Java类型
+<ul>
+<li>数字直接二进制转换</li>
+<li>文本从数据库字符集二进制解码为Java字符串</li>
+<li>日期时间从二进制转为Java Date/LocalDateTime对象</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="数据库引擎处理">数据库引擎处理</h3>
+<h4 id="1-查询解析与优化">1. 查询解析与优化</h4>
+<ul>
+<li>数据库服务器接收SQL命令二进制流</li>
+<li>解析器将SQL文本转换为语法树</li>
+<li>查询优化器生成执行计划
+<ul>
+<li>基于统计信息(直方图二进制表示)选择最优索引</li>
+<li>计算成本模型，选择最高效访问路径</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-存储引擎二进制操作">2. 存储引擎二进制操作</h4>
+<ul>
+<li>以MySQL InnoDB为例:
+<ul>
+<li>数据以页为单位(通常16KB二进制块)组织</li>
+<li>B+树索引以二进制树结构存储
+<ul>
+<li>非叶节点存储键值和指针</li>
+<li>叶节点存储完整记录或主键引用</li>
+</ul>
+</li>
+<li>事务日志(redo log)以二进制追加模式写入
+<ul>
+<li>包含操作类型、表ID、记录位置和新值的二进制记录</li>
+</ul>
+</li>
+<li>记录格式包含各种二进制元数据
+<ul>
+<li>事务ID、回滚指针、字段长度等</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="3-blob二进制数据处理">3. BLOB/二进制数据处理</h4>
+<ul>
+<li>大型二进制对象特殊处理
+<ul>
+<li>可能存储在单独的二进制页中</li>
+<li>使用JDBC的setBinaryStream/getBinaryStream处理</li>
+<li>Java可能使用ByteArrayInputStream/ByteArrayOutputStream处理内存中的二进制数据</li>
+<li>大型BLOB可能直接写入文件系统，数据库只存储引用</li>
+</ul>
+</li>
+</ul>
+<h3 id="缓存层处理">缓存层处理</h3>
+<h4 id="1-本地缓存caffeineehcache">1. 本地缓存(Caffeine/Ehcache)</h4>
+<ul>
+<li>热点数据缓存在JVM堆内存
+<ul>
+<li>使用高效二进制数据结构(如ConcurrentHashMap)</li>
+<li>对象可能序列化为二进制格式减少内存占用</li>
+<li>使用引用队列和弱引用管理内存</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-分布式缓存redismemcached">2. 分布式缓存(Redis/Memcached)</h4>
+<ul>
+<li>对象序列化为二进制
+<ul>
+<li>Java序列化(效率低但方便)</li>
+<li>JSON(文本格式，需要UTF-8编码为二进制)</li>
+<li>Protocol Buffers/Avro/Kryo(高效二进制格式)</li>
+</ul>
+</li>
+<li>通过特定二进制协议与缓存服务器通信
+<ul>
+<li>Redis协议(RESP)使用简单二进制格式</li>
+<li>请求/响应包括类型标记和数据长度</li>
+</ul>
+</li>
+<li>缓存数据结构的二进制实现
+<ul>
+<li>Redis的字符串是二进制安全的(可存储任意二进制数据)</li>
+<li>Redis集合、哈希表、有序集合等都有高效二进制实现</li>
+</ul>
+</li>
+</ul>
+<h2 id="6-响应生成与返回">6. 响应生成与返回</h2>
+<h3 id="响应组装">响应组装</h3>
+<ul>
+<li>Java对象转换为HTTP响应
+<ul>
+<li>Jackson/Gson将对象序列化为JSON二进制流</li>
+<li>按UTF-8编码将字符转换为字节序列</li>
+<li>数字按大端/小端格式编码</li>
+<li>特殊字符进行转义</li>
+</ul>
+</li>
+<li>设置HTTP响应头
+<ul>
+<li>Content-Type指定格式(application/json)</li>
+<li>Content-Length设置二进制长度</li>
+<li>压缩响应体(如gzip)
+<ul>
+<li>使用压缩算法将原始二进制数据压缩</li>
+<li>添加Content-Encoding: gzip头部</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="异步处理reactive编程">异步处理(Reactive编程)</h3>
+<ul>
+<li>在Spring WebFlux/Reactor中
+<ul>
+<li>使用事件循环而非线程池</li>
+<li>非阻塞IO处理多个请求</li>
+<li>使用回压机制控制二进制数据流速率</li>
+<li>Flux/Mono对象代表异步数据流</li>
+<li>使用Netty的ByteBuf高效处理二进制缓冲区</li>
+</ul>
+</li>
+</ul>
+<h3 id="响应返回路径">响应返回路径</h3>
+<ul>
+<li>应用服务器将响应二进制流返回Web服务器</li>
+<li>Web服务器可能进行进一步处理
+<ul>
+<li>添加服务器相关HTTP头</li>
+<li>日志记录响应大小和状态码</li>
+</ul>
+</li>
+<li>通过已建立的TCP连接返回客户端
+<ul>
+<li>如果启用了HTTP Keep-Alive，连接可能复用</li>
+<li>否则发送FIN包关闭TCP连接</li>
+</ul>
+</li>
+</ul>
+<h2 id="7-消息队列与异步处理">7. 消息队列与异步处理</h2>
+<h3 id="消息生产">消息生产</h3>
+<ul>
+<li>将操作编码为二进制消息
+<ul>
+<li>消息头部(元数据)和消息体(有效载荷)</li>
+<li>可能使用Avro/Protocol Buffers等二进制序列化格式</li>
+</ul>
+</li>
+<li>通过二进制协议发送到消息代理
+<ul>
+<li>AMQP协议使用特定帧格式</li>
+<li>Kafka协议有自定义二进制格式</li>
+</ul>
+</li>
+</ul>
+<h3 id="消息代理处理">消息代理处理</h3>
+<ul>
+<li>代理(如RabbitMQ/Kafka)接收二进制消息</li>
+<li>存储在磁盘/内存中
+<ul>
+<li>Kafka将消息按分区存储在日志文件中</li>
+<li>日志文件是二进制追加文件</li>
+<li>使用索引(偏移量→物理位置)加速访问</li>
+</ul>
+</li>
+<li>消息按主题/队列组织
+<ul>
+<li>主题信息以二进制元数据存储</li>
+</ul>
+</li>
+</ul>
+<h3 id="消息消费">消息消费</h3>
+<ul>
+<li>消费者服务接收二进制消息</li>
+<li>将消息反序列化为Java对象</li>
+<li>根据消息内容执行操作
+<ul>
+<li>可能触发数据库事务</li>
+<li>可能更新缓存</li>
+<li>可能生成新消息</li>
+</ul>
+</li>
+</ul>
+<h2 id="8-特殊二进制数据处理">8. 特殊二进制数据处理</h2>
+<h3 id="文件上传处理">文件上传处理</h3>
+<ul>
+<li>multipart/form-data解析
+<ul>
+<li>根据边界标记分割不同部分</li>
+<li>解析Content-Disposition头获取文件名</li>
+<li>将二进制文件数据流式写入临时存储</li>
+</ul>
+</li>
+<li>大文件处理
+<ul>
+<li>使用NIO零拷贝将上传数据直接从网络写入磁盘</li>
+<li>计算校验和(MD5/SHA)验证数据完整性</li>
+<li>文件以二进制块方式存储</li>
+</ul>
+</li>
+</ul>
+<h3 id="图像处理">图像处理</h3>
+<ul>
+<li>使用Java图像API(如JAI/ImageIO)处理二进制图像
+<ul>
+<li>将二进制流解码为内存中的像素矩阵</li>
+<li>像素按RGB/RGBA格式在内存中表示</li>
+<li>执行缩放、裁剪等操作</li>
+<li>重新编码为JPEG/PNG等二进制格式</li>
+</ul>
+</li>
+</ul>
+<h3 id="全文搜索集成">全文搜索集成</h3>
+<ul>
+<li>与Elasticsearch/Solr集成
+<ul>
+<li>文本转为分词器的输入流</li>
+<li>分词器产生词元(Token)流</li>
+<li>词元被索引到倒排索引(二进制结构)</li>
+<li>倒排索引包含词项-&gt;文档ID列表的映射</li>
+<li>使用压缩二进制格式(如Delta编码)高效存储文档ID列表</li>
+</ul>
+</li>
+</ul>
+<h2 id="总结">总结</h2>
+<p>后端系统处理数据的每一步都涉及二进制数据转换和处理。从网络边界到应用层，再到数据存储，数据始终以各种专门的二进制格式表示，每种格式都针对特定用途进行了优化。Java虚拟机和底层硬件协同工作，通过高效的内存管理、CPU缓存和指令执行来处理这些二进制数据，使整个系统能够高效、可靠地运行。</p>
+<p>通过这个详细描述，您可以看到从用户输入到服务器处理的过程中，数据在各个层次是如何表示为二进制形式，以及CPU、内存和寄存器如何参与整个数据处理过程。从物理信号到抽象数据结构，再到网络传输，数据始终以二进制形式存在并被处理。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[AI大模型应用开发]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/ai-da-mo-xing-ying-yong-kai-fa/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/ai-da-mo-xing-ying-yong-kai-fa/">
+        </link>
+        <updated>2025-05-08T01:04:36.000Z</updated>
+        <content type="html"><![CDATA[<hr>
+<h2 id="tags-aititle-ai大模型应用开发-扫盲篇linktitle-ai大模型应用开发weight-1description-ai大模型应用开发-扫盲篇">tags: [&quot;AI&quot;]<br>
+title: &quot;AI大模型应用开发-扫盲篇&quot;<br>
+linkTitle: &quot;AI大模型应用开发&quot;<br>
+weight: 1<br>
+description: &gt;<br>
+AI大模型应用开发-扫盲篇</h2>
+<h1 id="ai大模型应用开发-扫盲篇">AI大模型应用开发-扫盲篇</h1>
+<p>当下从工程技术角度来看，AI大模型可以分为十个领域：前沿大模型、基准评估、提示思维链、检索增强生成、智能体、代码生成、视觉、声音、图像/视频扩散、微调。<br>
+本文旨在扫盲大模型应用开发基础概念，并介绍大模型应用开发的常见模式。</p>
+<h2 id="一-怎样得到一个大模型">一、怎样得到一个大模型？</h2>
+<blockquote>
+<p>有卡没卡两种玩法，如果只面向应用开发，结合上信息安全的背景，则推荐使用社区开源模型或集成企业内部模型(下节介绍)。</p>
+</blockquote>
+<h3 id="1-囤卡自己训练全流程定制">1. 囤卡自己训练（全流程定制）</h3>
+<ul>
+<li>
+<p><strong>核心概念</strong></p>
+<ul>
+<li><strong>AI(artificial intelligence)</strong>: 由来已久的概念，本文特指的生成式人工智能（gen AI），将机器学习和深度学习的神经网络提升到了一个新的水平。它可以创建新的内容和想法（例如图像和视频）, 也可以使用已知知识来解决新问题。</li>
+<li><strong>LLM (Large Language Model)</strong>: 大型语言模型，是基于大量数据进行预训练得到的超大型深度学习模型，可自主学习（统计归纳），会理解（Token向量化）人类基本的语法、语言和知识。一般用参数的多少来衡量大模型能力。</li>
+<li><strong>GPT (Generative Pre-trained Transformer)</strong>: 生成式预训练 Transformer 模型，是一系列使用 Transformer 架构的神经网络模型，能够回答产出（关联预测）类似人类的文本和内容（图像、音乐等），并以对话方式回答问题。</li>
+<li><strong>Transformer 模型</strong>: GPT的核心，是一种神经网络架构，它使用了自注意力机制（self-attention）来处理序列数据，并使用了多头自注意力（multi-head self-attention）来提高模型的性能。</li>
+<li><strong>Pre-trained (预训练)</strong>: 在无标注通用数据（如Common Crawl）上训练出基础模型，从已知找规律（优化损失函数）学习语言规律和世界知识，预测产出未知。需从头构建模型，通常需要超万亿token的庞大数据集和数万张高性能GPU（如H100/A100）组成的算力集群。</li>
+<li><strong>Fine-tuning (微调)</strong>: 在预训练模型基础上，用于特定领域数据（如金融客服、辅助编码）调整参数，使模型更适应垂直场景的推理。通常仅需调整少量参数（如使用LoRA技术调整0.1%-1%的参数），显存需求可降低至预训练的10%-20%。</li>
+<li><strong>模型压缩</strong>: 模型压缩技术，如量化、剪枝、知识蒸馏等，可以减少模型的参数数量，从而降低显存需求。
+<ul>
+<li><strong>知识蒸馏</strong>: 将大型复杂模型（教师模型）在有限损失的情况下知识转移到更小型、高效模型（学生模型）中, 这样做的好处包括降低计算成本、减少推理时间，同时保持高性能，适合资源受限环境的部署。</li>
+<li><strong>模型量化</strong>: 模型量化是指将模型参数从浮点数转换为整数或低精度数据类型，以减少存储和计算开销。</li>
+</ul>
+<!-- - **模型稀疏**: 也叫剪枝，模型稀疏是指通过删除或减少模型中一些低权重或参数来减少模型的大小和计算量。 -->
+</li>
+</ul>
+<blockquote>
+<p>蒸馏提取精华，量化降低细节。</p>
+</blockquote>
+</li>
+<li>
+<p><strong>实施难点</strong></p>
+<ul>
+<li><strong>硬件门槛</strong>: OpenAI的GPT-4预训练成本约7800万美元，下一代模型的训练成本可能突破10亿美元，甚至向100亿美元迈进。国内有厂商利用算法优化，达到GPT-4同等性能表现的情况下，使大模型训练成本大幅降低，但也需要近600万美元的成本。</li>
+<li><strong>数据要求</strong>: 需清洗TB级高质量文本，避免噪声干扰。</li>
+<li><strong>技术复杂度</strong>: 涉及分布式训练、梯度优化等工程难题。</li>
+</ul>
+</li>
+<li>
+<p><strong>适用场景</strong><br>
+当下大模型训练成本呈现“头部攀升、尾部下降”的极化现象。技术创新（算法优化、工程协同、开源生态）和国产算力替代为降本提供可能，此模式推荐巨头企业或科研机构用于前沿模型研发（如训练行业专属大模型）。</p>
+</li>
+</ul>
+<hr>
+<h3 id="2-下载社区开放模型主流选择">2. 下载社区开放模型（主流选择）</h3>
+<p>上一种方法，需要自己训练、微调得到一个LLM模型，现在介绍直接下载使用开放的大模型。</p>
+<ul>
+<li>
+<p><strong>推荐平台</strong></p>
+<p>推荐平台(类似于代码找github，容器镜像找dockerhub的关系),可下载热门模型(和数据集):</p>
+<ul>
+<li><strong>国外平台</strong>: <a href="https://huggingface.co/models">Hugging Face Hub</a>: 提供100万+开源模型，涵盖Qwen2、DeepSeek、LLaMA、Gemma等热门模型。</li>
+<li><strong>国内平台</strong>: <a href="https://www.modelscope.cn/">魔搭ModelScope</a>、智源悟道、讯飞星火。</li>
+</ul>
+</li>
+<li>
+<p><strong>模型类型（可商用）</strong></p>
+<table>
+<thead>
+<tr>
+<th>模型名称</th>
+<th>参数量</th>
+<th>特点</th>
+<th>典型用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LLaMA-3</td>
+<td>8B~70B</td>
+<td>Meta，支持微调</td>
+<td>通用对话、推理</td>
+</tr>
+<tr>
+<td>Mistral-7B</td>
+<td>7B</td>
+<td>法国，性能接近LLaMA-13B</td>
+<td>代码生成、摘要</td>
+</tr>
+<tr>
+<td>Phi-4</td>
+<td>14B</td>
+<td>微软，支持微调</td>
+<td>擅长英语对话</td>
+</tr>
+<tr>
+<td>Qwen-系列</td>
+<td>0.5B~72B</td>
+<td>阿里，大语言模型和大型多模态模型系列</td>
+<td>通用对话、推理</td>
+</tr>
+<tr>
+<td>DeepSeek-v3</td>
+<td>671B</td>
+<td>国内幻方，MoE模型，训练成本降60%</td>
+<td>通用对话、推理</td>
+</tr>
+<tr>
+<td>DeepSeek-R1-蒸馏</td>
+<td>32B~70B</td>
+<td>国内幻方，模型蒸馏，支持微调</td>
+<td>复杂推理、编码、数学</td>
+</tr>
+<tr>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li>
+<p><strong>对比维度</strong></p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>说明</th>
+<th>示例对比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>参数量</strong></td>
+<td>7B/13B/70B等，参数量越大能力越强，但资源需求更高</td>
+<td>LLaMA-7B（8GB显存） vs LLaMA-70B（需多卡）</td>
+</tr>
+<tr>
+<td><strong>上下文窗口</strong></td>
+<td>单次输入支持的最大Token数</td>
+<td>GPT-4（128K） vs Claude-3（200K）</td>
+</tr>
+<tr>
+<td><strong>多语言支持</strong></td>
+<td>是否支持中文、代码等非英语场景</td>
+<td>Qwen-72B（中文优化） vs CodeLlama</td>
+</tr>
+<tr>
+<td><strong>推理速度</strong></td>
+<td>生成100个Token所需时间，影响用户体验</td>
+<td>Mistral-7B（快） vs LLaMA-13B（较慢）</td>
+</tr>
+<tr>
+<td><strong>CPU推理支持</strong></td>
+<td>没有GPU的要考虑，是否提供量化版本及CPU优化方案</td>
+<td>LLaMA.cpp（CPU优化） vs DeepSeek-MoE（需GPU）</td>
+</tr>
+<tr>
+<td><strong>内存占用</strong></td>
+<td>不同精度（FP16/INT8）消耗不同</td>
+<td>Phi-3（4GB） vs Qwen1.5-4B（8GB）</td>
+</tr>
+<tr>
+<td><strong>许可证</strong></td>
+<td>商用限制（如LLaMA-2可商用，LLaMA-1仅限研究）</td>
+<td>企业选型需重点审查</td>
+</tr>
+<tr>
+<td><strong>多模态支持</strong></td>
+<td>输出格式：图像、文本、音频、视频等</td>
+<td>GPT-4o-mini(多模态) vs deepseek-v3(仅文本)</td>
+</tr>
+</tbody>
+</table>
+</li>
+</ul>
+<blockquote>
+<p>参数B和Token的关系</p>
+</blockquote>
+<blockquote>
+<p>参数B应该是指模型训练的参数量，比如7B就是70亿参数。Token则是问答处理中的基本单位，通常对应单词或子词(1 Token约为1个汉字或4个字母)。<br>
+参数数量影响模型的学习能力和复杂度，而Token处理涉及输入输出的长度和速度。两者在模型训练和推理阶段都有不同的影响。比如，参数多的模型通常需要更多的计算资源，处理Token的能力更强，生成更准确的文本。但这也可能带来更高的延迟和资源消耗。</p>
+</blockquote>
+<hr>
+<h2 id="二-怎么使用大模型">二、怎么使用大模型</h2>
+<p>前面主要讲了怎么得到大模型（自己训练和下载开源模型），下面介绍怎么使用大模型，技术上简单讲就是调用大模型的API，让大模型（服务）输出结果（文本生成、代码生成、图像生成）。<br>
+可以类比为一种中间件，用户可只关注输入和输出，中间件（大模型）负责推理产出。</p>
+<ul>
+<li>
+<p><strong>在线API调用</strong></p>
+<ul>
+<li><strong>国外厂商</strong>: 典型OpenAI的<code>gpt-4-turbo</code>每千Token约$0.01，延迟低但数据需出境。</li>
+<li><strong>AI集成服务</strong>: 在线集成的模型服务，本文发稿时众代理商均有活动，可领取百万Token免费额度</li>
+<li><strong>国内厂商</strong>: deepseek(性价比极高,每百万Tokens为2元)、智谱AI（符合数据合规要求）、千问、百川。</li>
+</ul>
+</li>
+<li>
+<p><strong>本地私有化部署</strong></p>
+<ul>
+<li>
+<p><strong>加速推理的引擎选择</strong>:</p>
+<table>
+<thead>
+<tr>
+<th><strong>工具</strong></th>
+<th><strong>优势</strong></th>
+<th><strong>适用场景</strong></th>
+<th><strong>性能基准</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>vLLM</strong></td>
+<td>PagedAttention技术提升吞吐量3倍</td>
+<td>高并发API服务 （CPU/GPU/TPU..）</td>
+<td>70B模型 120 tokens/s (A100)</td>
+</tr>
+<tr>
+<td><strong>llama.cpp</strong></td>
+<td>极致CPU优化，支持苹果Metal加速</td>
+<td>边缘设备部署</td>
+<td>7B模型 45 tokens/s (M2 Ultra)</td>
+</tr>
+<tr>
+<td><strong>Ollama</strong></td>
+<td>一键部署，内置模型库</td>
+<td>快速原型验证</td>
+<td>13B模型 28 tokens/s (i9-13900H)</td>
+</tr>
+<tr>
+<td><strong>TGI</strong></td>
+<td>企业级特性（监控/负载均衡）</td>
+<td>生产环境集群 （不支持CPU）</td>
+<td>支持千级别并发请求</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li>
+<p><strong>硬件推荐指南</strong>:</p>
+<table>
+<thead>
+<tr>
+<th><strong>硬件环境</strong></th>
+<th><strong>推荐模型</strong></th>
+<th><strong>性能指标</strong></th>
+<th><strong>适用场景</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>手机/边缘设备</strong></td>
+<td>Phi-3-mini (3.8B)</td>
+<td>iPhone 15 Pro: 35 tokens/s</td>
+<td>离线对话、实时翻译</td>
+</tr>
+<tr>
+<td><strong>CPU笔记本</strong></td>
+<td>Qwen1.5-4B-Chat-GGUF (量化版)</td>
+<td>i7-12700H: 18 tokens/s</td>
+<td>文档摘要、基础问答</td>
+</tr>
+<tr>
+<td><strong>消费级GPU</strong></td>
+<td>Llama-3-8B-Instruct (4-bit量化)</td>
+<td>RTX 4090: 85 tokens/s</td>
+<td>代码生成、知识库问答</td>
+</tr>
+<tr>
+<td><strong>企业级服务器</strong></td>
+<td>DeepSeek-MoE-16b-chat</td>
+<td>2×A100: 120 tokens/s</td>
+<td>金融分析、复杂推理</td>
+</tr>
+<tr>
+<td><strong>混合部署集群</strong></td>
+<td>Qwen1.5-72B-Chat + vLLM</td>
+<td>8×H100: 240 tokens/s (动态批处理)</td>
+<td>超长文本生成、多轮对话</td>
+</tr>
+</tbody>
+</table>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>硬件优化技巧</strong>:</p>
+<ul>
+<li>CPU加速：
+<ul>
+<li>内存优化，使用GGUF格式 + mmap技术加载模型</li>
+<li>计算加速，启用BLAS库加速（OpenBLAS/Intel MKL），ARM设备可使用NEON指令集优化</li>
+</ul>
+</li>
+<li>GPU显存压缩：
+<ul>
+<li>量化，将模型参数的精度从浮点数降低到低位表示（FP8,INT4等），使模型在资源有限的设备上更高效地部署（会降低部分模型性能）</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>开发模式对比</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>方式</th>
+<th>优点</th>
+<th>缺点</th>
+<th>适用阶段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>在线API调用</td>
+<td>快速集成，无需运维</td>
+<td>依赖网络，数据出内网风险</td>
+<td>原型验证</td>
+</tr>
+<tr>
+<td>本地私有化部署</td>
+<td>数据隐私可控，定制化强</td>
+<td>硬件成本高，需调优</td>
+<td>企业生产环境</td>
+</tr>
+<tr>
+<td>公私混合部署</td>
+<td>平衡成本与安全性</td>
+<td>架构复杂度高</td>
+<td>中大型项目</td>
+</tr>
+</tbody>
+</table>
+</li>
+</ul>
+<hr>
+<h2 id="四-基于大模型的应用技术">四、基于大模型的应用技术</h2>
+<h3 id="1-提示词工程prompt-engineering">1. 提示词工程（Prompt Engineering）</h3>
+<ul>
+<li>
+<p><strong>核心原则</strong></p>
+<ul>
+<li><strong>角色定义</strong>: <em>“你是一位资深律师，需用简洁语言解释以下法条...”</em></li>
+<li><strong>结构化指令</strong>: 使用XML/JSON格式明确输入输出规则。</li>
+<li><strong>少样本学习（Few-Shot）</strong>: 提供示例引导模型理解任务。</li>
+</ul>
+</li>
+<li>
+<p><strong>工具推荐</strong></p>
+<ul>
+<li><a href="https://smith.langchain.com/hub">LangChain Hub</a>: 共享高质量Prompt模板</li>
+<li><a href="https://promptperfect.jina.ai">PromptPerfect</a>: 自动优化提示词</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-rag检索增强生成">2. RAG（检索增强生成）</h3>
+<ul>
+<li>
+<p><strong>技术流程</strong></p>
+<pre><code class="language-mermaid">graph LR
+A[文档切分] --&gt; B[向量化存储]
+B --&gt; C[用户提问检索]
+C --&gt; D[注入Prompt生成答案]
+</code></pre>
+</li>
+<li>
+<p><strong>关键组件</strong></p>
+<ul>
+<li><strong>Embedding模型</strong>: 文本转向量（推荐text-embedding-3-small）</li>
+<li><strong>向量数据库</strong>: Pinecone（云服务）、Chroma（本地轻量级）</li>
+<li><strong>重排序器</strong>: Cohere Rerank、BAAI/bge-reranker-large</li>
+</ul>
+</li>
+<li>
+<p><strong>难题中文分词语义</strong></p>
+<ul>
+<li>混合分词策略：Jieba（词典匹配） + LSTM-CRF模型（实体识别）</li>
+<li>上下文增强：在向量检索后添加语义重排层（使用bge-reranker-base-v1.5）</li>
+</ul>
+</li>
+<li>
+<p><strong>开源框架</strong></p>
+<ul>
+<li><a href="https://www.llamaindex.ai">LlamaIndex</a>: 快速构建RAG流水线</li>
+<li><a href="https://haystack.deepset.ai">Haystack</a>: 支持多模态检索</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-agent智能体">3. Agent（智能体）</h3>
+<ul>
+<li>
+<p><strong>核心能力</strong></p>
+<ul>
+<li><strong>工具调用</strong>: 联网搜索、执行代码、调用API</li>
+<li><strong>任务分解</strong>: 将复杂问题拆解为子任务（如“规划旅行”→订机票→订酒店）</li>
+<li><strong>自我迭代</strong>: 根据反馈调整策略</li>
+</ul>
+</li>
+<li>
+<p><strong>开发框架</strong></p>
+<ul>
+<li><a href="https://github.com/Significant-Gravitas/AutoGPT">AutoGPT</a>: 自主任务完成</li>
+<li><a href="https://langchain-ai.github.io/langgraph">LangGraph</a>: 构建多Agent协作系统</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="五-实战案例企业知识库问答系统">五、实战案例：企业知识库问答系统</h2>
+<h3 id="技术方案">技术方案</h3>
+<pre><code>用户提问 → 向量检索（Milvus） → Rerank排序 → Prompt拼接 → LLaMA-7B生成 → 返回答案
+</code></pre>
+<h3 id="代码片段python">代码片段（Python）</h3>
+<pre><code class="language-python">from llama_index import VectorStoreIndex, SimpleDirectoryReader
+
+# 1. 加载文档
+documents = SimpleDirectoryReader(&quot;data&quot;).load_data()
+
+# 2. 构建索引
+index = VectorStoreIndex.from_documents(documents)
+
+# 3. 问答查询
+query_engine = index.as_query_engine()
+response = query_engine.query(&quot;公司年假政策如何规定？&quot;)
+print(response)
+</code></pre>
+<hr>
+<h2 id="六-避坑指南">六、避坑指南</h2>
+<ol>
+<li><strong>模型幻觉</strong>
+<ul>
+<li>添加事实性校验层（如调用Wolfram Alpha验证数值结果）</li>
+</ul>
+</li>
+<li><strong>长文本处理</strong>
+<ul>
+<li>采用滑动窗口（Sliding Window）分割超长上下文</li>
+</ul>
+</li>
+<li><strong>安全防护</strong>
+<ul>
+<li>使用NeMo Guardrails过滤敏感词 &amp; 防止Prompt注入</li>
+</ul>
+</li>
+</ol>
+<hr>
+<p>希望通过以上内容，可以帮助大家系统掌握大模型应用开发的全链路要点，从模型获取到技术落地均有实用参考，推荐实践后，再根据兴趣/需求重点拓展跟进文章开头提到的十大热点领域。</p>
+<!-- > 本文有一些背景认知没有交代(于我个人算是门外汉的学习答疑总结)，欢迎大家提出改进意见，一起学习，共创新价值。 -->
+<p>作者：许小平</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[今日日记（2025-05-07）]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/jin-ri-ri-ji-2025-05-07/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/jin-ri-ri-ji-2025-05-07/">
+        </link>
+        <updated>2025-05-07T10:08:30.000Z</updated>
+        <content type="html"><![CDATA[<h2 id="今日日记2025-05-07">📅 今日日记（2025-05-07）</h2>
+<p><strong>1. 自动化任务进展：</strong><br>
+今天成功通过 <strong>GitHub Actions + GitHub Pages</strong> 实现了前端项目的自动打包与部署，这是关键的 DevOps 自动化环节。将这部分流程打通，极大提高了更新效率。<br>
+同时使用 <strong>Gridea</strong> 编辑和部署了新一期的日记博客，确保技术积累和认知记录同步。</p>
+<p><strong>2. AI集成理解升级：</strong><br>
+深入理解了事件机制在 AI 集成中的作用，不再依赖手动输入，而是通过监听用户行为触发事件，采用“被动集成”思路，提升了系统的智能响应能力。<br>
+构建了基于高质量 Prompt 模板的生成系统，结合 N8N 流程引擎和 Dify 打造初级智能体，已能执行一定复杂度的流程自动处理。</p>
+<p><strong>3. LLM应用实践总结：</strong></p>
+<ul>
+<li><strong>代码自动生成：</strong> 基于 DeepSeek/OpenAI/Qwen 等模型，实现前端+后端代码模板化生产。</li>
+<li><strong>代码审计：</strong> 引入 MCP GitLab 客户端结合 LLM 提示做静态代码审查实验。</li>
+<li><strong>Github 热点项目自动追踪：</strong> 通过 GitHub Actions 定时执行 Python 工作流，提取热门项目并自动生成 Issues。</li>
+<li><strong>数据库操作：</strong> 借助 Cherry Studio 连接 PostgreSQL，实验 SQL 层级的自动操控与知识问答。</li>
+</ul>
+<p><strong>4. 认知与感悟：</strong><br>
+再次思考了“人生意义”这一根基性命题。保持<strong>健康身体</strong>（例如继续生酮饮食、一日一餐、补充 ZN、MG、K、蛋白质等）显著提升了情绪稳定性。与此同时，将注意力聚焦于一件“感兴趣且值得奋斗”的事业，能够持续投入并形成正反馈循环，未来可期。</p>
+]]></content>
+    </entry>
+</feed>
