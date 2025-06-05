@@ -1,0 +1,3229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://yuzhupeng.top/myblogs/</id>
+    <title>fishyue</title>
+    <updated>2025-06-05T07:16:27.022Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://yuzhupeng.top/myblogs/"/>
+    <link rel="self" href="https://yuzhupeng.top/myblogs/atom.xml"/>
+    <subtitle>由奢入俭难，由俭入奢易</subtitle>
+    <logo>https://yuzhupeng.top/myblogs/images/avatar.png</logo>
+    <icon>https://yuzhupeng.top/myblogs/favicon.ico</icon>
+    <rights>All rights reserved 2025, fishyue</rights>
+    <entry>
+        <title type="html"><![CDATA[登录流程代码，结合 Mermaid 与 PlantUML 图表可视化]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/deng-lu-liu-cheng-dai-ma-jie-he-mermaid-yu-plantuml-tu-biao-ke-shi-hua/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/deng-lu-liu-cheng-dai-ma-jie-he-mermaid-yu-plantuml-tu-biao-ke-shi-hua/">
+        </link>
+        <updated>2025-06-04T03:35:45.000Z</updated>
+        <content type="html"><![CDATA[<hr>
+<h1 id="企业统一登录流程图文解析含-mermaid-与-plantuml-可视化">企业统一登录流程图文解析（含 Mermaid 与 PlantUML 可视化）</h1>
+<p>本文结合前后端实现代码，对一个集成了<strong>拼图验证码</strong>与<strong>AD域认证</strong>的账号密码登录流程进行可视化说明。我们分别使用 <strong>Mermaid</strong> 与 <strong>PlantUML</strong> 进行时序图与流程图的绘制，以便于开发团队理解整体业务流程。</p>
+<hr>
+<h2 id="登录流程概览">🧩 登录流程概览</h2>
+<p>用户通过前端页面提交账号密码，系统先进行拼图验证，再根据是否为系统已有用户决定走本地校验或 AD 域认证，并最终完成 token 的生成与登录跳转。</p>
+<hr>
+<h2 id="mermaid-流程图简洁结构">📊 Mermaid 流程图（简洁结构）</h2>
+<pre><code class="language-mermaid">flowchart TD
+  A[用户点击登录按钮] --&gt; B[handleSubmit 调用]
+  B --&gt; C[初始化拼图验证码 verifyInit]
+  C --&gt; D[用户验证通过]
+  D --&gt; E[调用 API: /userLogin]
+  E --&gt; F[后端接收参数: username, password, truthpassword, uuid]
+
+  F --&gt; G{系统中是否存在用户？}
+  G -- 否 --&gt; H[获取 accessToken]
+  H --&gt; I[调用 AD 域认证接口]
+  I --&gt; J{AD认证是否通过？}
+  J -- 否 --&gt; K[返回错误：AD认证失败]
+  J -- 是 --&gt; L[调用 AD 接口获取员工信息]
+  L --&gt; M{是否查到员工信息？}
+  M -- 否 --&gt; N[根据工号再次获取员工信息]
+  N --&gt; O[注册为新用户]
+  M -- 是 --&gt; O
+
+  G -- 是 --&gt; P[本地校验密码]
+  P --&gt; Q{密码验证是否通过？}
+  Q -- 是 --&gt; R[登录成功]
+  Q -- 否 --&gt; S[尝试 AD 认证]
+  S --&gt; T{AD认证是否通过？}
+  T -- 否 --&gt; U[返回错误：密码错误]
+  T -- 是 --&gt; V[更新本地密码]
+
+  O --&gt; R
+  V --&gt; R
+  R --&gt; W[创建 Token]
+  W --&gt; X[返回 Token 到前端]
+  X --&gt; Y[前端存储 Token 并跳转首页]
+</code></pre>
+<blockquote>
+<p>✅ 建议使用支持 Mermaid 的 Markdown 编辑器（如 Typora、Obsidian、VS Code 插件）进行渲染。<br>
+<img src="https://yuzhupeng.top/myblogs//post-images/1749008217718.png" alt="" loading="lazy"></p>
+</blockquote>
+<hr>
+<h2 id="plantuml-时序图完整调用关系">⏱ PlantUML 时序图（完整调用关系）</h2>
+<pre><code class="language-plantuml">@startuml
+actor 用户
+participant &quot;前端 Login.vue&quot; as Frontend
+participant &quot;后端 Controller&quot; as Controller
+participant &quot;MemberService&quot; as Service
+participant &quot;ADMemberSyncService&quot; as ADService
+participant &quot;TokenService&quot; as TokenService
+
+用户 -&gt; Frontend: 输入用户名/密码\n点击登录
+Frontend -&gt; Frontend: verify.init() 验证码校验
+Frontend -&gt; 用户: 展示拼图验证码
+用户 -&gt; Frontend: 验证通过
+Frontend -&gt; Controller: POST /userLogin\nusername + password + truthpassword + uuid
+
+Controller -&gt; Service: usernameLogin(username, password, truthpassword)
+
+alt 用户不存在
+  Service -&gt; ADService: getAccessToken()
+  Service -&gt; ADService: adAuthenticate(username, truthpassword, accessToken)
+  alt 认证失败
+    ADService --&gt; Service: false
+    Service -&gt; Controller: 返回错误
+  else 认证成功
+    Service -&gt; ADService: getEmployeeInfo(username, accessToken)
+    alt 未获取成功
+      Service -&gt; ADService: getEmployeeInfoByWorkNumber(username)
+    end
+    Service -&gt; Service: 创建新用户(member)
+  end
+else 用户存在
+  Service -&gt; Service: 校验本地密码
+  alt 密码正确
+    Service -&gt; TokenService: 创建 token
+  else 密码错误
+    Service -&gt; ADService: getAccessToken()
+    Service -&gt; ADService: adAuthenticate(username, truthpassword, accessToken)
+    alt AD认证失败
+      Service -&gt; Controller: 返回错误
+    else AD认证成功
+      Service -&gt; Service: 更新本地密码
+      Service -&gt; TokenService: 创建 token
+    end
+  end
+end
+
+TokenService --&gt; Service: 返回 token
+Service --&gt; Controller: 返回 accessToken/refreshToken
+Controller --&gt; Frontend: 登录成功
+Frontend -&gt; 用户: 跳转首页
+@enduml
+</code></pre>
+<blockquote>
+<p>✅ 可通过 <a href="https://www.plantuml.com/plantuml/">PlantUML Live</a> 或 VS Code 插件进行可视化。<br>
+<img src="https://yuzhupeng.top/myblogs//post-images/1749008228294.png" alt="" loading="lazy"><br>
+<img src="https://yuzhupeng.top/myblogs//post-images/1749008234309.png" alt="" loading="lazy"></p>
+</blockquote>
+<hr>
+<h2 id="总结">🔎 总结</h2>
+<ul>
+<li>登录流程中使用了 <strong>双重校验机制</strong>：先本地密码校验，再补偿性调用 AD 域认证。</li>
+<li>用户不存在时，也能通过 AD 信息自动建档，做到「无缝引导入系统」。</li>
+<li>图表工具如 <strong>Mermaid</strong> 更适合概览类展示，<strong>PlantUML</strong> 则适合详细链路跟踪。</li>
+</ul>
+<hr>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[`uml`建模与设计]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/umljian-mo-yu-she-ji/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/umljian-mo-yu-she-ji/">
+        </link>
+        <updated>2025-06-04T01:55:22.000Z</updated>
+        <content type="html"><![CDATA[<h1 id="uml建模与设计"><code>uml</code>建模与设计</h1>
+<h2 id="用例图use-case-diagram">用例图（Use Case Diagram）</h2>
+<blockquote>
+<p><a href="https://www.ibm.com/support/knowledgecenter/zh/SS4JE2_7.5.5/com.ibm.xtools.modeler.doc/topics/crelsme_ucd.html">IBM对用例图关系描述</a></p>
+</blockquote>
+<h2 id="类图class-diagram和对象图object-diagram">类图（Class Diagram）和对象图（Object Diagram）</h2>
+<blockquote>
+<p><a href="https://www.cnblogs.com/xdyixia/p/9265214.html">包含类名、属性、方法定义并描述类与类之间关系。</a></p>
+</blockquote>
+<h2 id="顺序图sequence-diagram和通信图">顺序图（sequence diagram）和通信图</h2>
+<p>https://www.cnblogs.com/zsg88/p/7631236.html</p>
+<p>Quartz scheduler在顺序图中的表示方式<br>
+https://stackoverflow.com/questions/32695526/uml-sequence-diagram-how-do-i-draw-cron-job<br>
+starUML使用Combined Fragment表示loop循环<br>
+https://www.jianshu.com/p/4a1ac9949e50<br>
+starUML使用Combined Fragment表格if+else结果<br>
+https://stackoverflow.com/questions/16152278/using-alt-in-sequence-diagrams-for-staruml</p>
+<p>starUML文本换行<br>
+https://stackoverflow.com/questions/49017464/how-to-jump-to-a-newline-in-staruml<br>
+活动图loop循环表示方法<br>
+https://www.researchgate.net/figure/Two-possible-representation-of-the-loop-in-the-UML-activity-diagram-a-shows-loop-where_fig2_220827278</p>
+<p>在软件设计过程使用时序图分别从系统层面、代码逻辑层面描述业务过程<br>
+https://stackoverflow.com/questions/8114770/how-to-show-if-condition-on-a-sequence-diagram</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[使用 source-map-explorer 分析前端打包结果进行包体积优化]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/shi-yong-source-map-explorer-fen-xi-qian-duan-da-bao-jie-guo-jin-xing-bao-ti-ji-you-hua/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/shi-yong-source-map-explorer-fen-xi-qian-duan-da-bao-jie-guo-jin-xing-bao-ti-ji-you-hua/">
+        </link>
+        <updated>2025-06-03T00:56:28.000Z</updated>
+        <content type="html"><![CDATA[<h1 id="使用-source-map-explorer-分析前端打包结果进行包体积优化">使用 source-map-explorer 分析前端打包结果进行包体积优化</h1>
+<p>目录</p>
+<p>[[隐藏](javascript:content_index_toggleToc())]</p>
+<ul>
+<li>
+<p><a href="https://lzw.me/a/source-map-explorer.html#1%20%E4%BD%BF%E7%94%A8%20source-map-explorer" title="1 使用 source-map-explorer">1 使用 source-map-explorer</a></p>
+<ul>
+<li><a href="https://lzw.me/a/source-map-explorer.html#1.1%20%E6%9E%84%E5%BB%BA%E8%BE%93%E5%87%BA%E9%A1%B9%E7%9B%AE" title="1.1 构建输出项目">1.1 构建输出项目</a></li>
+<li><a href="https://lzw.me/a/source-map-explorer.html#1.2%20%E4%BD%BF%E7%94%A8%20source-map-explorer%20%E5%88%86%E6%9E%90%E7%A4%BA%E4%BE%8B" title="1.2 使用 source-map-explorer 分析示例">1.2 使用 source-map-explorer 分析示例</a></li>
+</ul>
+</li>
+<li>
+<p><a href="https://lzw.me/a/source-map-explorer.html#2%20source-map-explorer%20%E5%8A%9F%E8%83%BD%E5%8F%82%E6%95%B0" title="2 source-map-explorer 功能参数">2 source-map-explorer 功能参数</a></p>
+</li>
+<li>
+<p><a href="https://lzw.me/a/source-map-explorer.html#3%20%E6%9B%B4%E5%A4%9A%E5%8F%82%E8%80%83" title="3 更多参考">3 更多参考</a></p>
+</li>
+</ul>
+<p>对于前端打包构建生产环境的产出内容，特别是在采用了 Vue.js、React 或 Angular 等主流框架的时候，其体积达数 M 是很常见的现象。</p>
+<p>当希望对包体积进行优化分析时，或许你知道可以选择使用 <code>webpack-bundle-analyzer</code>， 其实 <code>source-map-explorer</code> 也是个不错的选择。当打包输出结果生成了 sourceMap，<code>source-map-explorer</code> 就可以据此分析出每个模块所占用的体积。而且它不仅限于 JavaScript，对于 Css 预处理器 LESS 和 Sass 来说同样适用。</p>
+<h2 id="1-使用-source-map-explorer">1 使用 <code>source-map-explorer</code></h2>
+<h3 id="11-构建输出项目">1.1 构建输出项目</h3>
+<p>首先对前端项目构建输出用于生产环境的内容，注意开启 sourceMap 的输出。</p>
+<h3 id="12-使用-source-map-explorer-分析示例">1.2 使用 <code>source-map-explorer</code> 分析示例</h3>
+<p><code>source-map-explorer</code> 的用法相当简单。首先全局安装 <code>source-map-explorer</code>：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>npm i -g ``source``-map-explorer</code></td>
+</tr>
+</tbody>
+</table>
+<p>然后进入打包输出内容目录，执行如下命令（示例中的 为具体产出结果的 hash 值占位符）：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>source``-map-explorer main.&lt;``hash``&gt;.js main.&lt;``hash``&gt;.js.map</code></td>
+</tr>
+</tbody>
+</table>
+<p>你也可以不全局安装它，直接使用 npx 执行：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>npx ``source``-map-explorer main.&lt;``hash``&gt;.js main.&lt;``hash``&gt;.js.map</code></td>
+</tr>
+</tbody>
+</table>
+<p>如一切正常，该命令会在临时目录生成 html 文件分析结果，并自动打开浏览器进行显示。示例：</p>
+<figure data-type="image" tabindex="1"><a href="https://lzw.me/wp-content/uploads/2020/04/source-map-explorer.png"><img src="https://lzw.me/wp-content/uploads/2020/04/source-map-explorer.png" alt="" loading="lazy"></a></figure>
+<p>以上为单文件分析的简单示例。也可以使用通配符方式，如：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>npx ``source``-map-explorer dist``/prod/``*.js</code></td>
+</tr>
+</tbody>
+</table>
+<p>我们可以将该命令配置到 <code>package.json</code> 的 <code>scripts</code> 脚本中：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>12345</td>
+<td><code>{``  ``&quot;scripts&quot;``: {``     ``&quot;analyze&quot;``: ``&quot;npx source-map-explorer dist/prod/*.js&quot;``,``  ``}``}</code></td>
+</tr>
+</tbody>
+</table>
+<p>在完打包完成之后，执行 <code>npm run analyze</code> 即可得到分析结果。</p>
+<h2 id="2-source-map-explorer-功能参数">2 <code>source-map-explorer</code> 功能参数</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>123456789101112131415161718192021222324252627282930</td>
+<td><code>Analyze and debug space usage through ``source</code> <code>maps.``Usage:``source``-map-explorer script.js [script.js.map] [--json [result.json] | --html [result.html] | --tsv [result.csv]] [-m | --only-mapped] [--exclude-``source``-map] [--no-bor                                                                                                         der-checks] [--``gzip``] [--``sort``] [--replace=BEFORE_1 BEFORE_2 --with=AFTER_1 AFTER_2] [--no-root] [--coverage coverage.json] [--version] [--help | -h]</code> <code>Output:``  ``--json  If filename specified save output as JSON to specified ``file</code> <code>otherwise output to stdout.  [string]``  ``--tsv   If filename specified save output as TSV to specified ``file</code> <code>otherwise output to stdout.  [string]``  ``--html  If filename specified save output as HTML to specified ``file</code> <code>otherwise output to stdout rather than opening a browser.  [string]</code> <code>Replace:``  ``--replace  Apply a simple ``find``/replace</code> <code>on ``source</code> <code>file</code> <code>names. This can be used to fix some oddities with paths that appear ``in</code> <code>the ``source</code> <code>map generation process. Acce                                                                                                         pts regular expressions.  [array]``  ``--with     See --replace.  [array]</code> <code>Options:``  ``--version             Show version number  [boolean]``  ``--only-mapped, -m     Exclude ``&quot;unmapped&quot;</code> <code>bytes from the output. This will result ``in</code> <code>total counts ``less</code> <code>than the ``file</code> <code>size  [boolean]``  ``--exclude-``source``-map  Exclude ``source</code> <code>map comment size from output  [boolean]``  ``--no-root             To simplify the visualization, ``source``-map-explorer will remove any prefix shared by all sources. If you wish to disable this behavior, ``set</code> <code>--n                                                                                                         o-root.  [boolean]``  ``--no-border-checks    Disable invalid mapping column``/line</code> <code>checks.  [boolean]``  ``--coverage            If the path to a valid a chrome code coverage JSON ``export</code> <code>is supplied, the tree map will be colorized according to ``which</code> <code>percentage of the mod                                                                                                         ules code was executed  [string]``  ``--``gzip</code>                <code>Calculate ``gzip</code> <code>size. It also sets onlyMapped flag  [boolean]``  ``--``sort</code>                <code>Sort filenames  [boolean]``  ``-h, --help            Show help  [boolean]</code> <code>Examples:``  ``source``-map-explorer script.js script.js.map       Explore bundle``  ``source``-map-explorer script.js                     Explore bundle with inline ``source</code> <code>map``  ``source``-map-explorer dist``/js/``*.*                   Explore all bundles inside dist``/js</code> <code>folder``  ``source``-map-explorer script.js --tsv               Explore and output result as TSV to stdout``  ``source``-map-explorer script.js --json result.json  Explore and save result as JSON to the ``file</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-更多参考">3 更多参考</h2>
+<ul>
+<li>https://www.npmjs.com/package/source-map-explorer</li>
+<li>https://www.npmjs.com/package/webpack-bundle-analyzer</li>
+</ul>
+<!-- YARPP Thumbnails -->
+<h3 id=""></h3>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[NET微服务架构的演变]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/net-wei-fu-wu-jia-gou-de-yan-bian/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/net-wei-fu-wu-jia-gou-de-yan-bian/">
+        </link>
+        <updated>2025-06-01T01:05:21.000Z</updated>
+        <content type="html"><![CDATA[<p>NET微服务架构的演变</p>
+<h1 id="服务架构的演变">服务架构的演变</h1>
+<blockquote>
+<p>单体架构=&gt;分布式架构=&gt;SOA架构=&gt;微服务架构=&gt;Service Mesh=&gt;Cloud Native</p>
+</blockquote>
+<h2 id="单体架构垂直架构">单体架构/垂直架构</h2>
+<figure data-type="image" tabindex="1"><img src="https://img2024.cnblogs.com/blog/1084317/202505/1084317-20250525105841130-669816846.png" alt="Image 13: image" loading="lazy"></figure>
+<h2 id="分布式架构">分布式架构</h2>
+<figure data-type="image" tabindex="2"><img src="https://img2024.cnblogs.com/blog/1084317/202505/1084317-20250525105834679-1121298161.png" alt="Image 14: image" loading="lazy"></figure>
+<h2 id="soa架构">SOA架构</h2>
+<figure data-type="image" tabindex="3"><img src="https://img2024.cnblogs.com/blog/1084317/202505/1084317-20250525110505385-766738942.png" alt="Image 15: image" loading="lazy"></figure>
+<h2 id="微服务架构">微服务架构</h2>
+<figure data-type="image" tabindex="4"><img src="https://img2024.cnblogs.com/blog/1084317/202505/1084317-20250525110731646-171717451.png" alt="Image 16: image" loading="lazy"></figure>
+<h1 id="微服务架构的核心">微服务架构的核心</h1>
+<blockquote>
+<p>需要注意一点，微服务架构是分布式架构的一种落地，它们之间是接口与实现类的关系。</p>
+</blockquote>
+<h2 id="服务发现">服务发现</h2>
+<blockquote>
+<p>为什么需要服务发现？</p>
+</blockquote>
+<ol>
+<li>服务实例的动态变化</li>
+</ol>
+<p>在水平架构中，我们的服务集群往往是通过Nginx/IIS的<code>静态配置</code>来实现节点的增/减。加上节点少，因此，每次修改节点配置都是人工修改。</p>
+<p>而微服务架构天然的动态性与不确定性，服务实例通常需要动态扩容/缩容，故障重启，滚动升级等特点，因此服务示例的<code>网络地址是随时变化的</code>，加上微服务化之后，<code>服务实例呈指数级增加</code>，再由人工干预就不明智了。 2. 分布式环境的网络复杂性</p>
+<p>服务实例可能步骤在不同的物理机，虚拟机，容器中，将它们整合非常麻烦，需要一个能够<code>屏蔽底层细节，提供统一入口</code>的组件，让调用方无需关心目标服务具体位置 3. 抽象网络地址</p>
+<p>水平架构中，我们常常依赖IP+端口的形式来确定服务实例，在微服务架构中，使用Service-Name来提供一个<code>逻辑名称</code> 4. 去除不可用实例</p>
+<p>通过<code>心跳访问</code>实例提供的Healthcheck，当某个实例故障时，自动去除，避免访问到不可用节点。</p>
+<blockquote>
+<p>简单来说，服务发现解决的是微服务实例之间的动态通信问题，主要用于内部服务间的调用。</p>
+</blockquote>
+<figure data-type="image" tabindex="5"><img src="https://img2024.cnblogs.com/blog/1084317/202505/1084317-20250524132436118-1124537890.png" alt="Image 17: image" loading="lazy"></figure>
+<h2 id="api网关">API网关</h2>
+<blockquote>
+<p>API 网关是什么，它具备什么功能?</p>
+</blockquote>
+<ol>
+<li>统一路由</li>
+</ol>
+<p>根据请求路径将请求转发到后端实例，比如<a href="https://gateway.XXXXX.com/%E4%BD%A0%E7%9A%84%E4%B8%9A%E5%8A%A1%E5%AE%9E%E4%BE%8B%E5%89%8D%E7%BC%80/user/%7Bid%7D">https://gateway.XXXXX.com/你的业务实例前缀/user/{id}</a>; 2. 协议转换</p>
+<p>将前端的HTTP请求转换为服务内部的rbc协议 3. 身份认证与鉴权</p>
+<p>集中处理JWT，OAuth2等鉴权操作，避免每个微服务都重复校验 4. 流量管理</p>
+<p>实现服务的负载均衡，限流等操作，避免微服务收到冲击。 5. 日志与指标分析</p>
+<p>作为统一入口，可以统一记录请求量，响应实践，成功率等指标，方便分析。</p>
+<blockquote>
+<p>感觉服务发现与API网关重合了？</p>
+</blockquote>
+<p>服务发现解决的是微服务实例之间的动态通信问题，主要用于<code>内部服务间的调用</code>。</p>
+<p>API 网关是外部客户端访问微服务的统一入口，主要用于<code>客户端与微服务之间的通信</code>。</p>
+<p>举个例子：</p>
+<ol>
+<li>客户端认证需求</li>
+</ol>
+<p>若没有API网关，客户端直接调用微服务，每个微服务都要重复检验用户的JWT。 2. 多协议支持</p>
+<p>微服务内部使用gRPC协议，而客户端是HTTP协议，这中间无法转换。 3. 流量保护</p>
+<p>服务发现仅能实现简单的负载均衡（如轮询），但 API 网关可通过限流策略（如令牌桶、漏桶算法）防止突发流量压垮后端服务，这是服务发现无法实现的 4. 数据聚合优化</p>
+<p>比如客户端需要同时获取 user与order信息，若通过服务发现，需要分别调用user service与order service，产生多次网络请求，而API网关将多个响应结果合并为一个，减少客户端的请求量。</p>
+<blockquote>
+<p>有人可能会问了，我让服务发现与API网关合并就好了，这样不就大而全了？</p>
+<p>合二为一的组件确实存在，如 Kong、Traefik、Istio Gateway 等，它们通过集成服务发现机制到网关中，简化了微服务架构的复杂度。</p>
+</blockquote>
+<figure data-type="image" tabindex="6"><img src="https://img2024.cnblogs.com/blog/1084317/202505/1084317-20250525103053814-1346252574.png" alt="Image 18: image" loading="lazy"></figure>
+<h2 id="服务发现与api网关如何协同工作">服务发现与API网关如何协同工作？</h2>
+<ol>
+<li>API网关接收客户端请求后，根据route规则确定service.</li>
+</ol>
+<p>比如<a href="https://gateway.XXXXX.com/user-service/user/%7Bid%7D">https://gateway.XXXXX.com/user-service/user/{id}</a></p>
+<p>根据user-service前缀，便可确定需要调用哪个微服务。 2. 通过服务发现接口，查询获得可用服务列表</p>
+<p>调用注册中心 API。 3. 选择一个实例转发</p>
+<p>基于负载均衡策略 4. 微服务之间内部流转</p>
+<p>微服务 A 调用微服务 B 时，直接通过服务发现获取 B 的实例地址，无需经过 API 网关。微服务之间走轻量级通信方式，比如gRPC，避免使用HTTP协议提高性能。</p>
+<p><strong>网关+服务发现+服务实例=微服务架构的核心</strong>，这两个核心组件便已经组成了微服务基本实现，剩下的组件都是对微服务架构的<code>锦上添花</code>，但<code>不是雪中送炭</code>。</p>
+<h2 id="为什么还有服务间负载均衡">为什么还有服务间负载均衡？</h2>
+<p>API网关只负责外部HTTP请求，微服务内部之间通信不走API网关，因此需要一个服务间负载均衡的组件来承担内部流量的转发</p>
+<h1 id="微服务架构的拓展">微服务架构的拓展</h1>
+<figure data-type="image" tabindex="7"><img src="https://img2024.cnblogs.com/blog/1084317/202505/1084317-20250525104132578-2097043458.png" alt="Image 19: image" loading="lazy"></figure>
+<h2 id="分布式配置">分布式配置</h2>
+<blockquote>
+<p>为什么需要分布式配置中心?</p>
+</blockquote>
+<p>在单体架构或水平架构，抑或是简单的分布式架构中，配置文件通常以文件形式(appsettings.json)打包在application中，锁着系统规模的扩大，之前的管理方式就非常折磨人了。</p>
+<blockquote>
+<p>举个例子，你有10个微服务，每个微服务部署3个实例，此时你要修改数据库连接，那么你的工作就是要修改30次配置文件，并重启服务器，然后还要小心中途不出错，还要考虑敏感信息的加密。</p>
+</blockquote>
+<p>分布式配置中心是<strong>微服务中用于集中管理和动态推送配置的拓展组件</strong>。它通过统一的平台解决传统配置管理的痛点（如配置分散、修改复杂、环境隔离困难），是保障系统高可用、可维护的关键基础设施。</p>
+<table>
+<thead>
+<tr>
+<th><strong>传统配置管理的痛点</strong></th>
+<th><strong>分布式配置中心的解决方式</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>配置分散在各服务实例中，修改需逐个操作（如修改Nginx限流阈值需登录100台服务器）</td>
+<td>集中存储配置，通过统一界面或API修改，自动同步到所有实例</td>
+</tr>
+<tr>
+<td>配置变更需重启服务（如Spring Boot修改<code>server.port</code>需重启）</td>
+<td>支持<strong>动态推送</strong>，配置修改后服务无需重启即可生效</td>
+</tr>
+<tr>
+<td>多环境（开发/测试/生产）配置重复，易因复制错误导致线上故障</td>
+<td>支持<strong>环境隔离</strong>（如按<code>dev/test/prod</code>划分配置）</td>
+</tr>
+<tr>
+<td>配置版本混乱（如回滚时找不到历史版本）</td>
+<td>提供<strong>版本管理</strong>和<strong>回滚</strong>功能，记录每次修改的时间、操作人</td>
+</tr>
+<tr>
+<td>敏感配置（如数据库密码）明文存储，存在安全风险</td>
+<td>支持<strong>加密存储</strong>和<strong>权限控制</strong>（如仅管理员可修改数据库配置）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="分布式日志">分布式日志</h2>
+<p>分布式日志处理是指在分布式系统，对于分散在不同节点的日志进行集中收集，存储，分析和监控。<code>其核心目标是解决分布式环境下的日志的分散性，异构性，高并发问题</code>，帮助团队快速定位故障，挖掘数据。</p>
+<blockquote>
+<p>为什么需要分布式日志中心?</p>
+</blockquote>
+<ol>
+<li>全链路追踪，快速定位问题</li>
+</ol>
+<p>通过唯一请求 ID（如 Trace ID）将跨服务的日志串联，形成完整调用链路，秒级定位故障节点。。 2. 统一日志管理，提升可观测性</p>
+<p>将分散日志汇聚到统一平台（如 Elasticsearch），支持多维度查询（按时间、服务名、关键字、日志级别），通过标准化格式将日志转换为统一JSON格式。 3. 数据驱动的决策与优化</p>
+<p>统计用户行为日志（如页面访问、按钮点击），优化产品功能设计。</p>
+<p>分析日志中的耗时数据，识别服务瓶颈（如数据库慢查询、接口响应超时）</p>
+<p>通过日志量趋势分析，预测服务器存储和计算资源需求。</p>
+<h3 id="结构化日志的重要性">结构化日志的重要性</h3>
+<p>非结构化日志如同 “原始矿石”，而结构化日志是 “精雕细琢的宝石”—— 前者仅能提供原始信息，后者则通过标准化和字段化，让日志成为驱动系统优化、业务增长的核心资产。</p>
+<p>无论是故障排查、性能优化，还是合规审计，结构化日志都是实现 “数据驱动运维” 的必经之路。</p>
+<blockquote>
+<p>举个例子，你想统计出某个特定时间段用户登陆失败的次数。通过结构化日志，你可以轻松的以SQL的形式得出统计结果。</p>
+<p>再举个例子，通过提取response_time，设置 “当 95% 请求耗时&gt; 500ms 时触发告警</p>
+</blockquote>
+<pre><code class="language-bash">{
+  &quot;timestamp&quot;: &quot;2025-05-24T14:30:00Z&quot;,
+  &quot;service_name&quot;: &quot;user-service&quot;,
+  &quot;response_time&quot;:182ms,
+  &quot;level&quot;: &quot;ERROR&quot;,
+  &quot;message&quot;: &quot;用户登录失败&quot;,
+  &quot;metadata&quot;: {
+    &quot;user_id&quot;: &quot;U12345&quot;,
+    &quot;error_code&quot;: &quot;AUTH_001&quot;,
+    &quot;trace_id&quot;: &quot;abc-123&quot;
+  }
+}
+</code></pre>
+<blockquote>
+<p>简单来说，结构化日志，使得日志变成了数据库中的字段，从而发生质变。从之前的仅用于故障排查，上升到挖掘商业价值，用户行为分析的高度，让日志拥有了无限种可能。</p>
+<figure data-type="image" tabindex="8"><img src="https://img2024.cnblogs.com/blog/1084317/202505/1084317-20250524215203560-272590583.png" alt="Image 20: image" loading="lazy"></figure>
+</blockquote>
+<h2 id="分布式链路跟踪">分布式链路跟踪</h2>
+<p>链路跟踪主要用于<code>追踪和记录跨多个服务/组件</code>的链路请求，并分析经过的每个节点的处理时间，状态和依赖关系。其核心目标是解决分布式系统中又臭又长的调用链路，并<code>结合分布式日志帮助开发者快速定位</code>性能瓶颈与故障点</p>
+<blockquote>
+<p>为什么需要链路跟踪？</p>
+</blockquote>
+<ol>
+<li>线上故障快速排查</li>
+</ol>
+<p>一个请求可能设计到数十个服务，一个服务一个服务的查看，非常废人，效率也非常低下。</p>
+<p>比如用户支付失败，但无法确定是支付服务故障、库存服务超时，还是网络问题。链路跟踪通过 Trace ID 串联所有相关 Span，快速定位出错的服务或节点。</p>
+<ol start="2">
+<li>性能优化</li>
+</ol>
+<p>识别慢调用（如超时的 RPC 接口、低效的数据库查询），优化服务间调用逻辑或资源配置。</p>
+<ol start="3">
+<li>指导集群容量规划</li>
+</ol>
+<p>通过分析链路流量和资源消耗，评估各服务压力，指导集群扩/缩容</p>
+<ol start="4">
+<li>指导服务治理</li>
+</ol>
+<p>通过可视化的服务依赖关系，指导辅助熔断、限流策略的制定（如对高延迟服务设置降级规则）。</p>
+<figure data-type="image" tabindex="9"><img src="https://img2024.cnblogs.com/blog/1084317/202505/1084317-20250525101929576-1100629894.png" alt="Image 21: image" loading="lazy"></figure>
+<p><strong>根据我的血泪史，链路跟踪最大的好处就是跟其它项目组扯皮的时候有理有据，免得其它项目组不认账！</strong></p>
+<h2 id="分布式事务">分布式事务</h2>
+<p>分布式事务是指在分布式系统种，涉及多个服务节点或数据库节点的操作，需要保证其<code>操作原子性</code>，也就是要么全部成功，要么全部回滚。</p>
+<blockquote>
+<p>为什么需要链路跟踪？</p>
+</blockquote>
+<ol>
+<li>微服务架构下的业务拆分</li>
+</ol>
+<p>例如电商系统中，用户下单时需要同时完成：</p>
+<p>*. 订单服务创建订单（写入订单数据库）</p>
+<p>*. 库存服务扣减库存（写入库存数据库）；</p>
+<p>*. 支付服务冻结预授权（调用第三方支付接口）。</p>
+<p>若其中某一步骤失败（如库存不足或支付超时），需回滚所有已完成的操作（如撤销订单、恢复库存），否则会导致数据不一致（例如用户下单成功但库存未扣减，或库存扣减但支付失败）。</p>
+<ol start="2">
+<li>分布式数据库的事务需求</li>
+</ol>
+<p>使用分库分表，一个事务可能涉及多个数据库节点的数据操作。</p>
+<p>传统数据库的本地事务无法跨节点保证一致性，需分布式事务机制（如 2PC、3PC）协调各节点的提交或回滚。</p>
+<p>根据业务不同，金融、电商等对数据敏感的领域必须保证强一致性。</p>
+<p>受限于CAP定理，一致性，可用性，分区容错性无法同事满足，因此需要根据业务场景权衡。</p>
+<figure data-type="image" tabindex="10"><img src="https://img2024.cnblogs.com/blog/1084317/202505/1084317-20250525095935871-90852901.png" alt="Image 22: image" loading="lazy"></figure>
+<table>
+<thead>
+<tr>
+<th><strong>模式</strong></th>
+<th><strong>核心思想</strong></th>
+<th><strong>适用场景</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>两阶段提交（2PC）</strong></td>
+<td>通过事务管理器协调各参与者的“准备”和“提交”阶段，保证强一致性但性能较低。</td>
+<td>金融交易、实时数据同步</td>
+</tr>
+<tr>
+<td><strong>三阶段提交（3PC）</strong></td>
+<td>优化 2PC 的超时问题，引入“预提交”阶段，降低阻塞但实现复杂。</td>
+<td>高可用分布式系统</td>
+</tr>
+<tr>
+<td><strong>事务消息（最终一致性）</strong></td>
+<td>通过消息中间件异步协调，允许短暂不一致，最终达到一致。</td>
+<td>异步业务（如订单通知、物流更新）</td>
+</tr>
+<tr>
+<td><strong>TCC（Try-Confirm-Cancel）</strong></td>
+<td>自定义“尝试-确认-取消”逻辑，灵活处理部分成功的操作，适合复杂业务。</td>
+<td>微服务架构中的复杂流程（如支付）</td>
+</tr>
+<tr>
+<td><strong>最大努力通知</strong></td>
+<td>通过重试机制和回调接口确保最终一致性，允许人工干预。</td>
+<td>非核心业务（如短信通知）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>如果将微服务架构比作数学高考，那么分布式事务就是最后那道压轴题。这道题做好了，清华就离你不远了。</p>
+<p>别理解错了，我的意思不是让你玩好分布式事务，而是尽量避免使用分布式事务，它的收益其实很低，性能也不高。对于互联网业务，我们应该在设计阶段就尽量避免，能补偿就补偿，尽量不要高频次使用分布式事务。</p>
+<p>对于平庸的大多数而言，最后一道压轴题直接放弃会比较明智。</p>
+</blockquote>
+<p><code>微服务不是套公式，你的架构可以是Application微服务化，但底层数据库是同一个。你要相信SQL Server的能力，绝大多数公司业务达不到能让SQL Server出现瓶颈的时候</code></p>
+<h1 id="微服务架构的演化简单介绍版">微服务架构的演化，简单介绍版</h1>
+<h2 id="service-mesh">Service Mesh</h2>
+<p>随着微服务规模扩大，传统 SDK 模式的弊端（如代码侵入、升级成本高）凸显，服务网格作为基础设施层应运而生。</p>
+<figure data-type="image" tabindex="11"><img src="https://img2024.cnblogs.com/blog/1084317/202505/1084317-20250525111558504-1330714590.png" alt="Image 23: image" loading="lazy"></figure>
+<blockquote>
+<p>服务网格解决了什么问题？</p>
+</blockquote>
+<p>在传统微服务架构中，服务间通信需要<code>处理大量复杂逻辑</code>，例如：</p>
+<p>服务发现：如何找到目标服务的地址？</p>
+<p>负载均衡：如何将请求均匀分配到多个实例？</p>
+<p>流量控制：如何处理超时、重试、熔断？</p>
+<p>安全通信：如何实现服务间的认证、授权和加密？</p>
+<p>可观测性：如何收集调用链、指标、日志以监控系统？</p>
+<p>这些逻辑通常通过 SDK集成到服务代码中，<code>代码侵入性强，维护成本高</code>。</p>
+<p>而Service Mesh将这些底层通信逻辑从业务代码中剥离，下沉到独立的基础设施层，实现透明化、标准化、自动化的服务间通信。</p>
+<blockquote>
+<p>简单来说，就是做了一层抽象，解决了微服务架构中最复杂的 “连接” 问题。服务网格就像微服务之间的 “智能路由器” 和 “通信管家”，自动处理所有网络相关的脏活累活，让服务只需关心 “做什么”，而不是 “如何连接”。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th><strong>维度</strong></th>
+<th><strong>传统微服务（如Spring Cloud）</strong></th>
+<th><strong>服务网格</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>通信实现</strong></td>
+<td>通过SDK集成到服务代码中（侵入式）</td>
+<td>独立Sidecar代理（无侵入）</td>
+</tr>
+<tr>
+<td><strong>语言绑定</strong></td>
+<td>强绑定（如Java用Spring Cloud）</td>
+<td>语言无关（服务可由任意语言开发）</td>
+</tr>
+<tr>
+<td><strong>升级成本</strong></td>
+<td>需修改服务代码并重新部署</td>
+<td>只需升级Sidecar或控制平面</td>
+</tr>
+<tr>
+<td><strong>复杂度</strong></td>
+<td>服务代码包含底层逻辑，复杂度高</td>
+<td>底层逻辑下沉到网格，服务逻辑更纯粹</td>
+</tr>
+<tr>
+<td><strong>资源消耗</strong></td>
+<td>低（无额外进程）</td>
+<td>高（每个服务需运行Sidecar，Sidecar 的资源消耗通常为 “10%-20% 的额外 CPU / 内存）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="cloud-native">Cloud Native</h2>
+<p>Cloud Native（云原生） 是一种利用云计算特性设计、构建和运行应用的技术理念与实践方法，其核心目标是通过云的弹性、分布式和自动化能力，实现应用的高可用、可扩展、快速迭代。云原生并非单一技术，而是一套包含方法论、架构模式和工具链的完整体系</p>
+<figure data-type="image" tabindex="12"><img src="https://img2024.cnblogs.com/blog/1084317/202505/1084317-20250525114205692-1567043550.png" alt="Image 24: image" loading="lazy"></figure>
+<blockquote>
+<p>云原生解决了什么问题？</p>
+</blockquote>
+<p>微服务解决了 “拆” 的问题，云原生解决了 “在云中管好、用好这些拆分后的服务” 的问题。</p>
+<p>简单来说说，当服务上云后，云原生通过容器化、编排、服务网格等技术，解决了微服务在云环境中的部署、运维、治理难题，让微服务真正 “跑好” 在云中。</p>
+<p>极大的<code>简化了微服务架构的工作量</code>，协助开发人员更加专注于业务，而不是陷在微服务架构的技术细节中爬不出来。</p>
+<blockquote>
+<p>由于.NET 在互联网的生态不足，相对JAVA的Spring Cloud这种商店式脚手架，采用.NET技术栈的公司往往需要投入更大的资源才能完成微服务化建设，但上云后，由云厂商提供的简单快捷的SDK与UI ，极大简化了微服务架构的复杂性，甚至可以不需要架构师。</p>
+</blockquote>
+<h3 id="service-mesh与cloud-native的关系">Service Mesh与Cloud Native的关系？</h3>
+<p>Cloud Native的核心是微服务架构，而微服务的高效运行依赖可靠的服务间通信。传统微服务通过 SDK实现通信逻辑，但存在代码侵入、语言绑定等问题。Service Mesh 通过 Sidecar 代理拦截流量，将通信逻辑下沉到基础设施层，完美契合 Cloud Native 对 “解耦” 和 “无侵入” 的要求。</p>
+<blockquote>
+<p>说人话就是在Service Mesh的基础上又做了一层抽象。</p>
+</blockquote>
+<h2 id="serverless">Serverless</h2>
+<p>Serverless（无服务器架构） 是一种云原生时代的计算模型和开发模式，其核心是将服务器的运维和资源管理完全交给云服务商，开发者只需专注于编写业务代码（如函数、事件处理逻辑），无需关心服务器的采购、部署、扩容或故障修复。它通过 “按需付费” 和 “事件驱动” 的设计，彻底改变了传统应用的开发与运维方式。</p>
+<table>
+<thead>
+<tr>
+<th><strong>维度</strong></th>
+<th><strong>传统架构（VM/容器）</strong></th>
+<th><strong>Serverless架构</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>资源管理</strong></td>
+<td>需手动申请/释放服务器，管理扩缩容</td>
+<td>云服务商自动管理，开发者无需干预</td>
+</tr>
+<tr>
+<td><strong>付费模式</strong></td>
+<td>按服务器时长付费（如包年包月）</td>
+<td>按实际使用的计算资源（执行时间、内存）付费</td>
+</tr>
+<tr>
+<td><strong>开发重心</strong></td>
+<td>需编写服务器配置、运维脚本、监控代码</td>
+<td>仅需编写业务逻辑（函数或调用BaaS API）</td>
+</tr>
+<tr>
+<td><strong>扩缩容能力</strong></td>
+<td>需手动或脚本触发，响应延迟高（分钟级）</td>
+<td>自动扩缩容，支持毫秒级启动（冷启动可能延迟）</td>
+</tr>
+<tr>
+<td><strong>适用场景</strong></td>
+<td>长生命周期、高并发、状态敏感的应用</td>
+<td>短任务、事件驱动、无状态或轻状态的应用</td>
+</tr>
+</tbody>
+</table>
+<h1 id="理论与具体落地">理论与具体落地</h1>
+<blockquote>
+<p>逼逼了这么多，道理谁都懂，你又是如何落地呢？</p>
+<p>再次强调一点，微服务不是套公式，也不是银弹，技术始终是为业务服务，符合当前业务发展规模的架构就是好架构！</p>
+<figure data-type="image" tabindex="13"><img src="https://img2024.cnblogs.com/blog/1084317/202505/1084317-20250527110706093-1032486162.png" alt="Image 25: image" loading="lazy"></figure>
+</blockquote>
+<p>我司在实践微服务的10年中，从最开始的单体到水平拓展再到拥抱AWS Cloud，中间经历了多次变更，虽未严格按照理论实践，<code>但始终与业务发展步调一致，持续更新</code>。</p>
+<p>以下是与理论不同的地方：</p>
+<ol>
+<li>合并API网关与服务发现/治理</li>
+</ol>
+<p>评论区说得对，<code>一个分布式服务治理框架，市面上99%都是处于这个阶段</code>，我们的实践也是如此，使用Kong网关，作为分布式服务治理框架，集成了API与服务治理，服务发现。</p>
+<p>简化了绝大多数建设成本，因为类似ESB的服务发现/服务治理就是实现微服务的核心，剩余的组件均是锦上添花。</p>
+<ol start="2">
+<li>Application微服务化，数据库只使用一个</li>
+</ol>
+<p>不同项目组使用不同的数据库，但都统一部署在同一个物理机上，因为我们相信SQL Server的能力，要万一遇到了瓶颈，因为也照了业务划分数据库，所以快速切成独立的物理数据库成本也较低。</p>
+<p>还有一个原因是，分布式事务成本不低，实现复杂，也增加了运维/开发难度。SQL Server做好读写分离，主从同步，足以支撑业务发展很长一段时间。</p>
+<blockquote>
+<p>我司从起步到被收购，12年期间，成为了全美TOP级别房产公司，SQL Server从未掉过链子，也从未成为过木桶效应的那块短板。</p>
+</blockquote>
+<ol>
+<li>各微服务之间通过HTTP调用</li>
+</ol>
+<p>倒反天罡！微服务不用Grpc，你这还叫微服务吗？</p>
+<p>首先要明白一个点，Grpc快的根本在于使用HTTP2，所以我们内部调用协议是用的HTTP2甚至HTTP3，即可满足业务发展需要。</p>
+<ol start="2">
+<li>有了Kafka为什么还要使用AWS SQS/SNS</li>
+</ol>
+<p>Kafka 是面向大数据和流处理的 “重型” 平台，适合构建数据基础设施，但在延迟队列/死信号队列上需要插件实现。团队希望单一职责，保持Kafka纯粹性。</p>
+<p>SQS/SNS 是面向应用解耦和通知的 “轻量级” 托管服务，适合快速开发和 AWS 生态内的场景。</p>
+<ol start="3">
+<li>为什么要使用Kong网关而不是K8s全家桶</li>
+</ol>
+<p><code>技术为业务服务</code>，研发人员不应该陷在技术细节中出不来，尽管技术是研发的基本盘，但boss喊人来做事是来解决问题的，不是逢1，3，5升插件版本，逢2，4开技术分享会。</p>
+<p>说人话就是，<code>项目和你有一个能跑就不要动</code>，每天这么多会议，要跟产品斗智斗勇，没有这么多精力去学习新框架。</p>
+<p>框架复框架，框架何其多，你还记得大明湖畔的WCF,Silverlight,WindowsPhone吗？</p>
+<h2 id="参考资料">参考资料</h2>
+<blockquote>
+<p><a href="https://blog.51cto.com/universsky/5850036">https://blog.51cto.com/universsky/5850036</a></p>
+<p><a href="https://cloud.tencent.com/developer/article/1549492">https://cloud.tencent.com/developer/article/1549492</a></p>
+<p><a href="https://blog.csdn.net/weixin_43114209/article/details/144203876">https://blog.csdn.net/weixin_43114209/article/details/144203876</a></p>
+</blockquote>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[  ICIO、CRISPE、BROKE、RASCEF  Prompt framework]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/iciocrispebrokerascef-prompt-framework/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/iciocrispebrokerascef-prompt-framework/">
+        </link>
+        <updated>2025-05-29T01:17:35.000Z</updated>
+        <content type="html"><![CDATA[<p>ICIO、CRISPE、BROKE、RASCEF  Prompt framework</p>
+<ul>
+<li>
+<p>ICDO框架</p>
+<ul>
+<li>🤖 <strong>Instruction (任务)</strong> ：你希望 AI 去做的任务，比如翻译或者写一段文字</li>
+<li>📋 <strong>Context (背景)</strong> ：给 AI 更多的背景信息，引导模型做出更贴合需求的回复，比如你要他写的这段文字用在什么场景的、达到什么目的的</li>
+<li>📖 <strong>Input Data (输入数据)</strong> ：告诉 AI 你这次你要他处理的数据。 比如你要他翻译那么你每次要他翻译的句子就是「输入数据」</li>
+<li>📤 <strong>Output Indicator (输出格式)</strong> ：告诉 AI 他输出的时候要用什么格式、风格、类型，如果你无所谓它输出时候的格式，也可以不写</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-markdown"># Intruction 
+描述：请将以下的法文段落翻译成英文。 
+重要性：翻译的准确性对于我们的商务报告至关重要。 
+# Context 场景：
+这段法文将用于我们公司的年度商务报告。 
+目的：报告将呈现给公司的股东和潜在投资者，所以翻译需要准确且专业。 
+# Input Data 
+&quot;La croissance économique de la France a été stable au cours des dernières années, malgré les défis mondiaux.&quot; 
+# Output Indicator 
+风格：正式和专业的商务英文风格。 
+注意事项：请确保翻译内容无语法错误，并保持原文的意思。
+</code></pre>
+<ul>
+<li>
+<p>CRISPE 框架</p>
+<ul>
+<li>
+<p>😊 <strong>Capacity and Role （角色）</strong> ：告诉 AI 你要他扮演的角色，比如老师、翻译官等等</p>
+<p>📜 <strong>Insight (背景)</strong> ：告诉 AI 你让他扮演这个角色的背景，比如扮演老师是要教自己 10 岁的儿子等等</p>
+<p>📌 <strong>Statement (任务)</strong> ：告诉 AI 你要他做什么任务</p>
+<p>🎨 <strong>Personality (格式)</strong> ：告诉 AI 用什么风格、方式、格式来回答</p>
+<p>🧪 <strong>Experiment (实验)</strong> ：请求 AI 为你回复多个示例（如果不需要，可无）</p>
+</li>
+</ul>
+<pre><code class="language-markdown"># Capacity and Role
+描述：我希望你扮演一名经验丰富的小学数学老师。
+特点：具备耐心和鼓励性的教学风格，能够简单明了地解释数学概念。
+# Insight
+学生信息：你将为我的10岁的儿子提供帮助，他目前正在学习小学四年级的数学。
+学习环境：他在家中进行在线学习，有时会遇到一些数学问题需要帮助。
+# Statement
+描述：请帮助解答以下数学问题，并提供解题步骤。
+重要性：确保解答方法适合10岁儿童的理解能力。
+# Personality
+风格：友好、鼓励性，使用简单易懂的语言。
+示例：可以使用实际生活中的例子来解释数学概念。
+# Experiment
+描述：如果可能，请为每个问题提供两种不同的解题方法。
+目的：增强孩子的数学思维和解题能力。
+</code></pre>
+</li>
+<li>
+<p>BROKE框架</p>
+<ul>
+<li>
+<p>🌄 <strong>Background (背景)</strong>：说明背景，提供充足信息</p>
+<p>🎭 <strong>Role (角色)</strong>：你要 AI 扮演的角色是什么</p>
+<p>🎯 <strong>Objectives (目标/任务)</strong>：你要 AI 做的事情的一个描述</p>
+<p>🔑 <strong>Key Result (关键结果)</strong>：对于 AI 输出的回答，在风格、格式、内容等方面的要求</p>
+<p>🌟 <strong>Evolve (改进)</strong>：在 AI 给出回答以后，三种调整、改进方法</p>
+</li>
+</ul>
+<pre><code class="language-markdown"># Background
+项目描述：我们正在启动一个新的软件开发项目，目标是为中小企业提供一款高效的财务管理工具。
+团队组成：项目团队由5名开发人员、2名设计师、1名测试工程师和1名产品经理组成。
+# Role
+描述：我希望你扮演一名经验丰富的项目经理。
+特点：具备出色的项目管理技能，能够确保项目按时完成并满足预定的质量标准。
+# Objectives
+描述：请帮助我们制定一个详细的项目计划，包括项目的各个阶段、关键里程碑、资源分配和风险管理。
+# Key Result
+输出格式：项目计划应以Gantt图的形式呈现，并包括每个任务的开始和结束日期、负责人和依赖关系。
+关键指标：确保项目计划考虑到所有潜在的风险，并为每个风险提供了相应的应对策略。
+# Evolve
+反馈机制：在项目计划制定完成后，请提供一个反馈机制，以便团队成员可以提出他们的建议和改进意见。
+迭代：根据团队的反馈和项目进展，每两周对项目计划进行一次迭代和更新。
+持续监控：提供一个机制，以便我们可以实时监控项目的进展和状态。
+</code></pre>
+</li>
+<li>
+<p>RASCEF框架</p>
+<ul>
+<li>
+<p>🎭 <strong>Role (角色)</strong>：这就是 AI 需要扮演的人，他可以是电子邮件营销人员、项目经理、厨师或您能想到的任何其他角色</p>
+<p>🔍 <strong>Action (行动)</strong>：这是人工智能需要做的，例如编写项目执行计划</p>
+<p>📝 <strong>Script (步骤)</strong>：这些是 A 完成操作应遵循的步骤</p>
+<p>🌐 <strong>Content (上下文)</strong>：这是背景信息或情况</p>
+<p>🔍 <strong>Example (示例)</strong>：这些是说明这一点的特定实例，它们帮助人工智能理解语气和思维/写作风格</p>
+<p>📄 <strong>Format (格式)</strong>：这是 AI 应该呈现其答案的方式，它可以是段落、列表、对话或任何其他格式</p>
+<pre><code class="language-markdown"># Role
+描述：我希望你扮演一名经验丰富的电子邮件营销人员。
+特点：具备出色的市场分析能力，了解当前的电子邮件营销趋势和最佳实践。
+# Action
+任务：请为我们制定一个电子邮件营销策略，包括目标受众、内容策划和发送频率。
+# Script
+1.分析目标受众的特点和需求。
+2.设计电子邮件的内容和格式。
+3.制定发送计划和频率。
+4.设计跟踪和分析反馈的机制。
+# Content
+公司背景：我们是一家新兴的健康食品品牌，目标受众为20-40岁的健康生活爱好者。
+营销目标：提高品牌知名度，增加网站流量和促进产品销售。
+# Example
+内容建议：可以设计一系列关于健康饮食的小贴士，每周发送一次。
+风格：友好、鼓励性，使用简单易懂的语言。
+# Format
+电子邮件模板：使用清晰的标题、引人入胜的图片和简洁的文本内容。
+响应式设计：确保电子邮件在各种设备上都能正常显示。
+希望这样的格式和内容满足您的需求，如有其他修改或补充，请告诉我。
+</code></pre>
+</li>
+</ul>
+</li>
+</ul>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[SpringBoot性能优化的12个小技巧]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/springboot-xing-neng-you-hua-de-12-ge-xiao-ji-qiao/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/springboot-xing-neng-you-hua-de-12-ge-xiao-ji-qiao/">
+        </link>
+        <updated>2025-05-26T00:48:36.000Z</updated>
+        <content type="html"><![CDATA[<h1 id="springboot性能优化的12个小技巧">[SpringBoot性能优化的12个小技巧]</h1>
+<h2 id="前言">前言</h2>
+<p>不知道你在SpringBoot项目中，有没有遇到过下面这样的代码：</p>
+<pre><code class="language-java">@GetMapping(&quot;/orders&quot;)
+public List&lt;Order&gt; listOrders() {
+    return orderDao.findAll(); 
+}
+</code></pre>
+<p>一次性查询了所有的订单，全表扫描50万数据，导致接口查询性能很差，严重的时候可能会导致OOM问题。</p>
+<p><strong>问题定位</strong>：</p>
+<ul>
+<li>未分页查询</li>
+<li>无缓存机制</li>
+<li>未启用批量处理</li>
+</ul>
+<p>这次事故让我明白：<strong>性能优化必须贯穿开发全流程</strong>。</p>
+<p>今天这篇文章，跟大家一起聊聊SpringBoot优化的12招，希望对你会有所帮助。</p>
+<figure data-type="image" tabindex="1"><img src="https://files.mdnice.com/user/5303/f9081770-66e4-4c3d-93a9-adb099d364aa.png" alt="" loading="lazy"></figure>
+<figure data-type="image" tabindex="2"><img src="https://files.mdnice.com/user/5303/709386c3-f34e-4037-8b8e-64b3627e3d0a.png" alt="" loading="lazy"></figure>
+<h2 id="第1招连接池参数调优">第1招：连接池参数调优</h2>
+<p><strong>问题场景</strong>：<br>
+默认配置导致连接池资源浪费，高并发时出现连接等待</p>
+<p><strong>错误配置</strong>：</p>
+<pre><code class="language-plain">spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 1000 
+      connection-timeout: 30000
+</code></pre>
+<p>数据库连接池的最大连接数，盲目设置过大，连接超时时间设置过长。</p>
+<p><strong>优化方案</strong>：</p>
+<pre><code class="language-plain">spring:
+  datasource:
+    hikari:
+      maximum-pool-size: ${CPU核心数*2} # 动态调整
+      minimum-idle: 5
+      connection-timeout: 3000 # 3秒超时
+      max-lifetime: 1800000 # 30分钟
+      idle-timeout: 600000 # 10分钟空闲释放
+</code></pre>
+<p>数据库连接池的最大连接数，改成根据CPU核心数动态调整。</p>
+<p>将连接超时时间由30000，改成3000。</p>
+<h2 id="第2招jvm内存优化">第2招：JVM内存优化</h2>
+<p><strong>问题场景</strong>：<br>
+频繁Full GC导致服务卡顿</p>
+<p>我们需要优化JVM参数。</p>
+<p><strong>启动参数优化</strong>：</p>
+<pre><code class="language-java">java -jar -Xms4g -Xmx4g 
+-XX:NewRatio=1 
+-XX:+UseG1GC 
+-XX:MaxGCPauseMillis=200 
+-XX:InitiatingHeapOccupancyPercent=35
+-XX:+AlwaysPreTouch
+</code></pre>
+<p>最大堆内存和初始堆内存都设置成了4G。</p>
+<p>-XX:NewRatio=1，设置新生代和老年代各占一半。</p>
+<p>垃圾收集器配置的是G1。</p>
+<p>垃圾回收的最大停顿时间为200毫秒。</p>
+<h2 id="第3招关闭无用组件">第3招：关闭无用组件</h2>
+<p><strong>问题场景</strong>：<br>
+自动装配加载不需要的Bean</p>
+<p><strong>优化方案</strong>：</p>
+<pre><code class="language-plain">@SpringBootApplication(exclude = {
+    DataSourceAutoConfiguration.class,
+    SecurityAutoConfiguration.class
+})
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+</code></pre>
+<p>如果有些功能暂时用不到，可以先排除一下。</p>
+<p>在SpringBoot项目启动的时候，排除了DataSourceAutoConfiguration和SecurityAutoConfiguration配置类的自动装载。</p>
+<h2 id="第4招响应压缩配置">第4招：响应压缩配置</h2>
+<p><strong>问题场景</strong>：<br>
+接口返回JSON数据体积过大</p>
+<p><strong>优化方案</strong>：</p>
+<pre><code class="language-yml">server:
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/json
+    min-response-size: 1024
+</code></pre>
+<p>配置开启响应的压缩。</p>
+<h2 id="第5招请求参数校验">第5招：请求参数校验</h2>
+<p><strong>问题场景</strong>：<br>
+恶意请求导致资源耗尽</p>
+<p><strong>防御代码</strong>：</p>
+<pre><code class="language-java">@GetMapping(&quot;/products&quot;)
+public PageResult&lt;Product&gt; list(
+    @RequestParam @Max(value=100, message=&quot;页大小不能超过100&quot;) int pageSize,
+    @RequestParam @Min(1) int pageNum) {
+    //...
+}
+</code></pre>
+<p>在接口中做好参数校验，可以拦截很多恶意请求。</p>
+<h2 id="第6招异步处理机制">第6招：异步处理机制</h2>
+<p><strong>问题场景</strong>：<br>
+同步处理导致线程阻塞</p>
+<p><strong>优化方案</strong>：</p>
+<pre><code class="language-java">@Async(&quot;taskExecutor&quot;)
+public CompletableFuture&lt;List&lt;Order&gt;&gt; asyncProcess() {
+    return CompletableFuture.completedFuture(heavyProcess());
+}
+
+@Bean(&quot;taskExecutor&quot;)
+public Executor taskExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setCorePoolSize(5);
+    executor.setMaxPoolSize(10);
+    executor.setQueueCapacity(500);
+    return executor;
+}
+</code></pre>
+<p>在有些业务逻辑中，使用异步处理性能可能会更好。</p>
+<h2 id="第7招使用缓存">第7招：使用缓存</h2>
+<p>使用缓存可以提升效率。</p>
+<p><strong>缓存架构</strong>：</p>
+<figure data-type="image" tabindex="3"><img src="https://files.mdnice.com/user/5303/cfb5177c-5ea0-41d5-be16-cf6eca8766ce.png" alt="" loading="lazy"></figure>
+<p><strong>代码实现</strong>：</p>
+<pre><code class="language-java">@Cacheable(cacheNames = &quot;products&quot;, key = &quot;#id&quot;, 
+           cacheManager = &quot;caffeineCacheManager&quot;)
+public Product getDetail(Long id) {
+    return productDao.getById(id);
+}
+</code></pre>
+<p>这里使用了内存缓存。</p>
+<h2 id="第8招批量操作优化">第8招：批量操作优化</h2>
+<p><strong>问题场景</strong>：<br>
+逐条插入导致性能低下</p>
+<p><strong>优化方案</strong>：</p>
+<pre><code class="language-java">@Transactional
+public void batchInsert(List&lt;Product&gt; products) {
+    jdbcTemplate.batchUpdate(
+        &quot;INSERT INTO product(name,price) VALUES(?,?)&quot;,
+        products,
+        500, // 每批数量
+        (ps, product) -&gt; {
+            ps.setString(1, product.getName());
+            ps.setBigDecimal(2, product.getPrice());
+        });
+}
+</code></pre>
+<p>每500条数据插入一次数据库。</p>
+<h2 id="第9招索引深度优化">第9招：索引深度优化</h2>
+<p><strong>问题场景</strong>：<br>
+慢查询日志频繁出现全表扫描，SQL执行时间波动大</p>
+<p><strong>错误案例</strong>：</p>
+<pre><code class="language-sql">-- 商品表结构
+CREATE TABLE products (
+    id BIGINT PRIMARY KEY,
+    name VARCHAR(200),
+    category VARCHAR(50),
+    price DECIMAL(10,2),
+    create_time DATETIME
+);
+
+-- 低效查询
+SELECT * FROM products 
+WHERE category = '手机' 
+AND price &gt; 5000 
+ORDER BY create_time DESC;
+</code></pre>
+<p><strong>问题分析</strong>：</p>
+<figure data-type="image" tabindex="4"><img src="https://files.mdnice.com/user/5303/e5692dec-6dd6-4abd-b76a-958d12a62713.png" alt="" loading="lazy"></figure>
+<h3 id="优化方案一联合索引设计">优化方案一：联合索引设计</h3>
+<p><strong>索引创建</strong>：</p>
+<p>下面创建了一个分类ID，单价和时间的联合索引：</p>
+<pre><code class="language-sql">ALTER TABLE products 
+ADD INDEX idx_category_price_create 
+(category, price, create_time);
+</code></pre>
+<h3 id="优化方案二覆盖索引优化">优化方案二：覆盖索引优化</h3>
+<p><strong>查询改造</strong>：</p>
+<p>只查询索引包含字段：</p>
+<pre><code class="language-sql">SELECT id, category, price, create_time 
+FROM products 
+WHERE category = '手机' 
+AND price &gt; 5000 
+ORDER BY create_time DESC;
+</code></pre>
+<p>这里使用了覆盖索引。</p>
+<h3 id="优化方案三索引失效预防">优化方案三：索引失效预防</h3>
+<p><strong>常见失效场景</strong>：</p>
+<figure data-type="image" tabindex="5"><img src="https://files.mdnice.com/user/5303/b8482c5a-131d-4df0-aabe-9001af58209f.png" alt="" loading="lazy"></figure>
+<p><strong>案例修复</strong>：</p>
+<p>错误写法：</p>
+<pre><code class="language-sql">SELECT * FROM products 
+WHERE DATE(create_time) = '2023-01-01';
+</code></pre>
+<p>正确写法：</p>
+<pre><code class="language-sql">SELECT * FROM products 
+WHERE create_time BETWEEN '2023-01-01 00:00:00' 
+AND '2023-01-01 23:59:59';
+</code></pre>
+<p>查询时间范围，这里使用了BETWEEN AND关键字，代替了等于号。</p>
+<h3 id="优化方案四索引监控分析">优化方案四：索引监控分析</h3>
+<p><strong>诊断命令</strong>：</p>
+<p>查看索引使用情况：</p>
+<pre><code class="language-sql">SELECT 
+    index_name,
+    rows_read,
+    rows_selected 
+FROM 
+    sys.schema_index_statistics 
+WHERE 
+    table_name = 'products';
+</code></pre>
+<p>分析索引效率：</p>
+<pre><code class="language-javascript">EXPLAIN FORMAT=JSON 
+SELECT ...;
+</code></pre>
+<h3 id="索引优化黄金三原则">索引优化黄金三原则</h3>
+<ol>
+<li><strong>最左前缀原则</strong>：联合索引的第一个字段必须出现在查询条件中</li>
+<li><strong>短索引原则</strong>：整型字段优先，字符串字段使用前缀索引</li>
+<li><strong>适度索引原则</strong>：单个表索引数量不超过5个，总索引长度不超过表数据量30%</li>
+</ol>
+<p><strong>DBA工具箱</strong></p>
+<ul>
+<li>索引分析脚本</li>
+<li>执行计划可视化工具</li>
+<li>索引碎片检测工具</li>
+</ul>
+<h2 id="第10招自定义线程池">第10招：自定义线程池</h2>
+<p><strong>问题场景</strong>：<br>
+默认线程池导致资源竞争</p>
+<p><strong>优化方案</strong>：</p>
+<pre><code class="language-java">@Bean(&quot;customPool&quot;)
+public Executor customThreadPool() {
+    return new ThreadPoolExecutor(
+        10, // 核心线程
+        50, // 最大线程
+        60, TimeUnit.SECONDS,
+        new LinkedBlockingQueue&lt;&gt;(1000),
+        new CustomThreadFactory(),
+        new ThreadPoolExecutor.CallerRunsPolicy());
+}
+</code></pre>
+<p>在高并发业务场景中，使用Executors类创建默认的线程池，可能会导致OOM问题。</p>
+<p>因此，我们需要自定义线程池。</p>
+<h2 id="第11招熔断限流策略">第11招：熔断限流策略</h2>
+<p><strong>问题场景</strong>：<br>
+突发流量导致服务雪崩</p>
+<p><strong>解决方案</strong>：</p>
+<pre><code class="language-java">// 使用Sentinel实现接口限流
+@SentinelResource(value = &quot;orderQuery&quot;, 
+                  blockHandler = &quot;handleBlock&quot;,
+                  fallback = &quot;handleFallback&quot;)
+@GetMapping(&quot;/orders/{id}&quot;)
+public Order getOrder(@PathVariable Long id) {
+    return orderService.getById(id);
+}
+
+// 限流处理
+public Order handleBlock(Long id, BlockException ex) {
+    throw new RuntimeException(&quot;服务繁忙，请稍后重试&quot;);
+}
+
+// 降级处理
+public Order handleFallback(Long id, Throwable t) {
+    return Order.getDefaultOrder();
+}
+</code></pre>
+<p>为了解决重复流量导致服务雪崩的问题，我们需要增加接口熔断、限流和降级处理。</p>
+<h2 id="第12招全链路监控体系">第12招：全链路监控体系</h2>
+<p><strong>问题场景</strong>：<br>
+线上问题定位困难，缺乏数据支撑</p>
+<p>我们需要增加项目全链路的监控。</p>
+<p><strong>监控方案</strong>：</p>
+<pre><code class="language-yml"># SpringBoot配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: &quot;*&quot;
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+</code></pre>
+<p>这里使用了prometheus监控。</p>
+<p><strong>监控架构</strong>：</p>
+<figure data-type="image" tabindex="6"><img src="https://files.mdnice.com/user/5303/ca6fade8-994a-4646-9dcc-945bdfe896b6.png" alt="" loading="lazy"></figure>
+<p><strong>核心监控指标</strong>：</p>
+<figure data-type="image" tabindex="7"><img src="https://files.mdnice.com/user/5303/62344f6d-459e-40c3-9871-2646d705927c.png" alt="" loading="lazy"></figure>
+<h2 id="总结">总结</h2>
+<h3 id="springboot性能优化检查清单">SpringBoot性能优化检查清单</h3>
+<ul>
+<li>连接池参数按业务调整</li>
+<li>JVM参数经过压测验证</li>
+<li>所有查询走缓存机制</li>
+<li>批量操作替代逐条处理</li>
+<li>线程池按场景定制</li>
+<li>全链路监控覆盖</li>
+</ul>
+<figure data-type="image" tabindex="8"><img src="https://files.mdnice.com/user/5303/a9f579bd-cb69-4cd6-b2ee-ac7a9cf71407.png" alt="" loading="lazy"></figure>
+<p><strong>三条黄金法则</strong>：</p>
+<ol>
+<li><strong>预防性优化</strong>：编码时考虑性能影响</li>
+<li><strong>数据驱动</strong>：用监控指标指导优化方向</li>
+<li><strong>持续迭代</strong>：性能优化是持续过程</li>
+</ol>
+<p><strong>性能工具包</strong></p>
+<ul>
+<li>Arthas在线诊断</li>
+<li>JProfiler性能分析</li>
+<li>Prometheus监控体系</li>
+</ul>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[如何编写大语言模型的prompt]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/ru-he-bian-xie-da-yu-yan-mo-xing-de-prompt/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/ru-he-bian-xie-da-yu-yan-mo-xing-de-prompt/">
+        </link>
+        <updated>2025-05-21T09:32:33.000Z</updated>
+        <content type="html"><![CDATA[<hr>
+<p>title: 我的大语言模型课</p>
+<p>description: 关于如何编写大语言模型的prompt的一系列课</p>
+<hr>
+<ul>
+<li><a href="#%E5%89%8D%E8%A8%80">前言</a></li>
+<li><a href="#%E6%80%8E%E6%A0%B7%E4%BD%BF%E7%94%A8%E8%BF%99%E4%B8%AA%E7%B3%BB%E5%88%97%E8%AF%BE%E7%A8%8B">怎样使用这个系列课程</a></li>
+<li><a href="#%E7%AC%AC%E4%B8%80%E7%AB%A0-prompt%E7%9A%84%E5%9F%BA%E7%A1%80">第一章 prompt的基础</a>
+<ul>
+<li><a href="#prompt%E5%8E%9F%E7%90%86">Prompt原理</a></li>
+<li><a href="#%E5%8E%9F%E5%88%991-%E6%B8%85%E6%99%B0%E6%98%8E%E7%A1%AE%E7%9A%84%E6%8C%87%E4%BB%A4">原则1: 清晰明确的指令</a>
+<ul>
+<li><a href="#%E7%AD%96%E7%95%A51%E4%BD%BF%E7%94%A8%E5%88%86%E9%9A%94%E7%AC%A6%E6%B8%85%E6%99%B0%E5%9C%B0%E6%8C%87%E7%A4%BA%E8%BE%93%E5%85%A5%E7%9A%84%E4%B8%8D%E5%90%8C%E9%83%A8%E5%88%86">策略1：使用分隔符清晰地指示输入的不同部分</a></li>
+<li><a href="#%E7%AD%96%E7%95%A52-%E8%A6%81%E6%B1%82%E7%BB%93%E6%9E%84%E5%8C%96%E7%9A%84%E8%BE%93%E5%87%BA">策略2: 要求结构化的输出</a></li>
+<li><a href="#%E7%AD%96%E7%95%A53-%E8%A6%81%E6%B1%82%E6%A8%A1%E5%9E%8B%E6%A3%80%E6%9F%A5%E6%9D%A1%E4%BB%B6%E6%98%AF%E5%90%A6%E6%BB%A1%E8%B6%B3">策略3: 要求模型检查条件是否满足</a></li>
+<li><a href="#%E7%AD%96%E7%95%A54-%E5%B0%8F%E6%A0%B7%E6%9C%AC%E6%8F%90%E7%A4%BA">策略4： “小样本”提示</a></li>
+</ul>
+</li>
+<li><a href="#%E5%8E%9F%E5%88%992%E6%8C%87%E5%AF%BC%E6%A8%A1%E5%9E%8B%E6%80%9D%E8%80%83%E4%B8%80%E6%AD%A5%E4%B8%80%E6%AD%A5%E8%A7%A3%E5%86%B3%E9%97%AE%E9%A2%98">原则2：指导模型思考一步一步解决问题</a>
+<ul>
+<li><a href="#%E7%AD%96%E7%95%A51%E6%8C%87%E5%AE%9A%E5%AE%8C%E6%88%90%E4%BB%BB%E5%8A%A1%E6%89%80%E9%9C%80%E7%9A%84%E6%AD%A5%E9%AA%A4">策略1：指定完成任务所需的步骤</a></li>
+<li><a href="#%E7%AD%96%E7%95%A52-%E8%A6%81%E6%B1%82%E6%A8%A1%E5%9E%8B%E6%8C%89%E6%8C%87%E5%AE%9A%E7%9A%84%E6%A0%BC%E5%BC%8F%E8%BE%93%E5%87%BA">策略2: 要求模型按指定的格式输出</a></li>
+<li><a href="#%E7%AD%96%E7%95%A53%E6%8C%87%E7%A4%BA%E6%A8%A1%E5%9E%8B%E8%87%AA%E5%B7%B1%E8%A7%A3%E5%86%B3%E9%97%AE%E9%A2%98">策略3：指示模型自己解决问题</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#%E6%A8%A1%E5%9E%8B%E9%99%90%E5%88%B6%E5%B9%BB%E8%A7%89">模型限制：幻觉</a></li>
+<li><a href="#%E5%85%B6%E4%BB%96%E7%BB%8F%E9%AA%8C">其他经验</a></li>
+<li><a href="#%E7%AC%AC%E4%BA%8C%E7%AB%A0-%E8%BF%AD%E4%BB%A3%E4%BC%98%E5%8C%96%E4%BD%A0%E7%9A%84prompt">第二章 迭代优化你的prompt</a></li>
+<li><a href="#%E7%AC%AC%E4%B8%89%E7%AB%A0-%E6%96%87%E6%9C%AC%E6%B1%87%E6%80%BB%E6%A6%82%E6%8B%AC">第三章 文本汇总概括</a>
+<ul>
+<li><a href="#%E7%94%A8%E4%B8%80%E4%B8%AA%E5%8F%A5%E5%AD%90%E8%AF%8D%E5%AD%97%E7%AC%A6%E7%9A%84%E9%99%90%E5%88%B6%E6%A6%82%E6%8B%AC%E5%86%85%E5%AE%B9">用一个句子/词/字符的限制概括内容</a></li>
+<li><a href="#%E4%BB%A5%E8%BF%90%E8%BE%93%E5%92%8C%E4%BA%A4%E4%BB%98%E4%B8%BA%E9%87%8D%E7%82%B9%E8%BF%9B%E8%A1%8C%E6%80%BB%E7%BB%93">以运输和交付为重点进行总结</a></li>
+<li><a href="#%E4%BB%A5%E4%BB%B7%E6%A0%BC%E5%92%8C%E4%BB%B7%E5%80%BC%E6%84%9F%E4%B8%BA%E9%87%8D%E7%82%B9%E8%BF%9B%E8%A1%8C%E6%80%BB%E7%BB%93">以价格和价值感为重点进行总结</a></li>
+<li><a href="#%E7%94%A8%E6%8F%90%E5%8F%96%E6%9D%A5%E6%9B%BF%E4%BB%A3%E6%80%BB%E7%BB%93">用“提取”来替代“总结”</a></li>
+</ul>
+</li>
+<li><a href="#%E7%AC%AC%E5%9B%9B%E7%AB%A0-%E6%8E%A8%E7%90%86%E6%96%87%E6%9C%AC%E7%9A%84%E7%B1%BB%E5%9E%8B">第四章 推理文本的类型</a>
+<ul>
+<li><a href="#%E8%AF%86%E5%88%AB%E6%83%85%E6%84%9F%E7%B1%BB%E5%9E%8B">识别情感类型</a></li>
+<li><a href="#%E8%AF%86%E5%88%AB%E6%84%A4%E6%80%92">识别愤怒</a></li>
+<li><a href="#%E6%8F%90%E5%8F%96%E5%AE%A2%E6%88%B7%E8%AF%84%E8%AE%BA%E4%B8%AD%E7%9A%84%E4%BA%A7%E5%93%81%E5%92%8C%E5%85%AC%E5%8F%B8%E5%90%8D%E7%A7%B0">提取客户评论中的产品和公司名称</a></li>
+<li><a href="#%E5%90%8C%E6%97%B6%E5%81%9A%E5%A4%9A%E9%A1%B9%E4%BB%BB%E5%8A%A1">同时做多项任务</a></li>
+<li><a href="#%E4%B8%BB%E9%A2%98%E6%8E%A8%E6%96%AD">主题推断</a></li>
+<li><a href="#%E5%88%B6%E4%BD%9C%E7%89%B9%E5%AE%9A%E4%B8%BB%E9%A2%98%E7%9A%84%E6%96%B0%E9%97%BB%E5%88%A4%E6%96%AD">制作特定主题的新闻判断</a></li>
+</ul>
+</li>
+<li><a href="#%E7%AC%AC%E4%BA%94%E7%AB%A0-%E8%87%AA%E7%84%B6%E8%AF%AD%E8%A8%80">第五章 自然语言</a>
+<ul>
+<li><a href="#%E7%BF%BB%E8%AF%91">翻译</a>
+<ul>
+<li><a href="#%E4%BE%8B1-%E7%AE%80%E5%8D%95%E7%9A%84%E7%BF%BB%E8%AF%91">例1 简单的翻译</a></li>
+<li><a href="#%E4%BE%8B2--%E7%BF%BB%E8%AF%91%E4%B8%BA%E5%A4%9A%E8%AF%AD%E8%A8%80">例2  翻译为多语言</a></li>
+</ul>
+</li>
+<li><a href="#%E4%BE%8B3-%E8%AF%86%E5%88%AB%E8%AF%AD%E7%A7%8D">例3 识别语种</a></li>
+<li><a href="#%E8%BD%AC%E6%8D%A2%E8%AF%AD%E6%B0%94">转换语气</a>
+<ul>
+<li><a href="#%E4%BE%8B1-%E8%BD%AC%E6%8D%A2%E4%B8%BA%E6%AD%A3%E5%BC%8F%E7%94%A8%E8%AF%AD">例1 转换为正式用语</a></li>
+</ul>
+</li>
+<li><a href="#%E6%8B%BC%E5%86%99%E6%A3%80%E6%9F%A5%E8%AF%AD%E6%B3%95%E6%A3%80%E6%9F%A5">拼写检查/语法检查</a>
+<ul>
+<li><a href="#%E4%BE%8B-%E6%A3%80%E6%9F%A5%E8%AF%AD%E6%B3%95%E7%BB%99%E5%87%BA%E7%BA%A0%E6%AD%A3%E7%89%88%E6%9C%AC">例 检查语法给出纠正版本</a></li>
+</ul>
+</li>
+<li><a href="#%E6%88%91%E7%9A%84%E7%BB%8F%E9%AA%8C">我的经验</a>
+<ul>
+<li><a href="#%E4%BE%8B">例</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#%E7%AC%AC%E5%85%AD%E7%AB%A0-%E6%96%87%E6%9C%AC%E5%86%85%E5%AE%B9%E7%94%9F%E6%88%90">第六章 文本内容生成</a>
+<ul>
+<li><a href="#%E4%BB%8E%E5%AE%A2%E6%88%B7%E8%AF%84%E8%AE%BA%E4%B8%AD%E7%94%9F%E6%88%90%E4%B8%80%E5%B0%81%E7%94%B5%E5%AD%90%E9%82%AE%E4%BB%B6">从客户评论中生成一封电子邮件</a>
+<ul>
+<li><a href="#%E4%BE%8B-%E4%BB%8E%E5%AE%A2%E6%88%B7%E8%AF%84%E8%AE%BA%E7%94%9F%E6%88%90%E7%94%B5%E5%AD%90%E9%82%AE%E4%BB%B6">例 从客户评论生成电子邮件</a></li>
+<li><a href="#%E6%8F%90%E9%86%92%E6%A8%A1%E5%9E%8B%E4%BD%BF%E7%94%A8%E5%AE%A2%E6%88%B7%E7%94%B5%E5%AD%90%E9%82%AE%E4%BB%B6%E4%B8%AD%E7%9A%84%E7%BB%86%E8%8A%82">提醒模型使用客户电子邮件中的细节</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#%E7%AC%AC%E4%B8%83%E7%AB%A0-%E8%81%8A%E5%A4%A9%E6%9C%BA%E5%99%A8%E4%BA%BAchatbot">第七章 聊天机器人（chatbot）</a></li>
+<li><a href="#%E7%AC%AC%E5%85%AB%E7%AB%A0--%E5%A4%A7%E8%AF%AD%E8%A8%80%E6%A8%A1%E5%9E%8B%E7%9A%84%E5%9F%BA%E6%9C%AC%E5%8E%9F%E7%90%86%E6%9C%AA%E5%AE%8C%E6%88%90">第八章  大语言模型的基本原理（未完成）</a></li>
+<li><a href="#%E7%AC%AC%E4%B9%9D%E7%AB%A0-prompt%E6%A1%86%E6%9E%B6%E6%AD%A3%E5%9C%A8%E6%9B%B4%E6%96%B0%E4%B8%AD">第九章 Prompt框架（正在更新中）</a>
+<ul>
+<li><a href="#crispe--%E6%A1%86%E6%9E%B6">CRISPE  框架</a></li>
+<li><a href="#%E5%9B%BE%E7%81%B5%E6%9C%BA%E5%BC%8F%E7%9A%84%E6%A1%86%E6%9E%B6">图灵机式的框架</a></li>
+</ul>
+</li>
+<li><a href="#%E7%AC%AC%E5%8D%81%E7%AB%A0-%E6%80%BB%E7%BB%93">第十章 总结</a></li>
+<li><a href="#%E7%AC%AC%E5%8D%81%E4%B8%80%E7%AB%A0-prompt-engineering-%E7%9A%84%E7%BB%83%E4%B9%A0">第十一章 Prompt Engineering 的练习</a></li>
+<li><a href="#%E9%99%84%E5%BD%951-%E8%AF%BE%E7%A8%8B%E6%A1%86%E6%9E%B6">附录1 课程框架</a></li>
+<li><a href="#%E5%B7%A5%E5%85%B7%E9%93%BE%E5%BE%85%E6%9B%B4%E6%96%B0">工具链（待更新）</a></li>
+<li><a href="#%E5%8F%82%E8%80%83">参考</a></li>
+<li><a href="#about-me">About Me</a></li>
+</ul>
+<h1 id="前言">前言</h1>
+<figure data-type="image" tabindex="1"><img src="./images/image-20240422214801198.png" alt="image-20240422214801198" loading="lazy"></figure>
+<p>但是现阶段想要用他还有些难度， 需要学习如何写好提示词， 这门新兴的学问就叫提示词工程，英文为prompt engineering 。</p>
+<p>阅读学习这门课程，不需要你有任何理工科的背景。  但是需要你有点耐心， 跟着把文中提到的示例都去练习一遍。</p>
+<p>本文并非全部是原创， 参考<a href="https://learn.deeplearning.ai/courses/chatgpt-prompt-eng/lesson/1/introduction">chatGpt提示词课程</a>， 文中大量使用的案例都来源这个课程，  英文不错的同学， 推荐去认真学习这门课， 如果只需要快速过一遍， 本文希望能对你有帮助。</p>
+<p>本文包括的内容：</p>
+<ul>
+<li>prompt 原理</li>
+<li>prompt 技巧</li>
+<li>我的一些经验</li>
+<li>一些公开的prompt模板</li>
+<li>AI工具系列</li>
+</ul>
+<p>本系列课程不需要任何理工科基础， 很适合没有技术背景的读者们阅读。</p>
+<p><strong>此外， 我希望在使用本文的内容的时候， 请注明出处和作者。</strong></p>
+<p>Good Luck！</p>
+<h1 id="怎样使用这个系列课程">怎样使用这个系列课程</h1>
+<p>第一章到第五章 都在围绕基础原理，可以认为是prompt engineer 的第一性原理。    如果您不是这方面的专家， 我建议你先把前五章吃透。</p>
+<p>至于其他内容， 主要是看您的兴趣， 不学习也不会有什么影响。</p>
+<p>第八章框架篇， 我建议要看看， 这能帮你提升编写prompt的效率。</p>
+<h1 id="第一章-prompt的基础">第一章 prompt的基础</h1>
+<h2 id="prompt原理">Prompt原理</h2>
+<blockquote>
+<p>理解并掌握这些原则， 你可以完成大多数的和大语言模型协同工作。</p>
+</blockquote>
+<ul>
+<li>
+<p><strong>原则1：编写清晰明确的指示</strong></p>
+<ul>
+<li>
+<p>策略1：使用分隔符清晰地指示输入的不同部分</p>
+<blockquote>
+<p>指令包含引用的内容， 有利于大语言模型区分指令和背景信息。</p>
+</blockquote>
+</li>
+<li>
+<p>策略2：要求结构化的输出</p>
+<blockquote>
+<p>你可以大语言模型生成你想要的格式的数据， 比如csv格式（一种类似于excel的数据形式），json， html 。 你也可以用大语言模型处理小批量的数据，比如求和或求平均值等等。</p>
+</blockquote>
+</li>
+<li>
+<p>策略3：要求模型检查条件是否满足</p>
+<blockquote>
+<p>可以用作对内容的条件判断</p>
+</blockquote>
+</li>
+<li>
+<p>策略4： &quot;少样本&quot;提示</p>
+<blockquote>
+<p>通过给模型提供一些样例， 让模型更好的理解你要完成的任务。</p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>原则2：给模型一定时间“思考”</strong></p>
+<ul>
+<li>
+<p>策略1：具体指定完成任务所需的步骤</p>
+<blockquote>
+<p>指示模型的思考或完成任务的路径， 就像你在指导一个实习生完成任务所需要的步骤一样。</p>
+</blockquote>
+</li>
+<li>
+<p>策略2：在匆忙得出结论之前，指导模型自己解决问题</p>
+<blockquote>
+<p>不要让模型直接给出答案， 而让大语言模型通过思考自己解决问题。</p>
+</blockquote>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="原则1-清晰明确的指令">原则1: 清晰明确的指令</h2>
+<blockquote>
+<p>清晰明确的指令并不意味着写短句子， 在实践中， 简单句比长句子更容易表达。 使用英文的表达方法更容易被模型辩识。</p>
+</blockquote>
+<h3 id="策略1使用分隔符清晰地指示输入的不同部分">策略1：使用分隔符清晰地指示输入的不同部分</h3>
+<ul>
+<li>编写清晰具体的指令，指示模型去做什么。 引导模型朝着期望的方向输出内容。</li>
+<li>清晰的提示不是简短的提示。 在许多情况下， 更长的提示为模型提供了更多的清晰度和背景， 会让模型有更详细的输出相关的内容。</li>
+</ul>
+<p><strong>最佳实践</strong>： 用分割符将文本和指令有效地区分， 让模型更容易识别指令和文本。</p>
+<p>常用的分割符有：</p>
+<pre><code>三个引号： &quot;&quot;&quot; {text} &quot;&quot;&quot;
+三个反引号：  ``` {text} ```
+三个连字符： --- {text} ---
+尖括号: &lt; {text} &gt;
+xml 标记： &lt;tag&gt; {text} &lt;/tag&gt; 
+</code></pre>
+<blockquote>
+<p>其中{text} 是文本的内容</p>
+</blockquote>
+<p>指令示例：</p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>---
+你应该通过提供尽可能清晰和具体的指示来表达你想让模型做什么。这将引导模型朝着期望的输出方向发展，并减少收到无关或不正确响应的可能性。不要把清晰的提示与简短的提示混淆。在许多情况下，更长的提示为模型提供了更多的清晰度和背景信息，这可能导致更详细和相关的输出。
+---
+概括由3个连字符分割符中的内容，将其变为一个句子。
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>内容概括：提供清晰、具体的指示有助于引导模型朝着期望的输出方向发展，减少无关或不正确响应的可能性。
+</code></pre>
+<blockquote>
+<p>我的经验</p>
+</blockquote>
+<pre><code>- 短句或短语比长句子更优
+- 祈使句更好
+- 类英文的表达理解更好
+- 使用的词汇越具体越好
+
+</code></pre>
+<h3 id="策略2-要求结构化的输出">策略2: 要求结构化的输出</h3>
+<p>要求模型输出html、json、csv等等结化的形式输出。</p>
+<p><strong>例: 输出一个csv格式的文本</strong></p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>生成三本虚构书籍的标题，作者和类型，并以csv格式提供，包含以下键：book_id，title，author，genre。
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>book_id,title,author,genre
+1,The Whispering Woods,Margaret Rivers,Fantasy
+2,Echoes of Eternity,Lucas Stone,Mystery
+3,Stars of Serenity,Isabel Frost,Science Fiction
+
+</code></pre>
+<p><strong>例: 输出一个json格式的文本</strong></p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>生成三本虚构书籍的标题，作者和类型，并以json格式提供，包含以下键：book_id，title，author，genre。
+</code></pre>
+<p>json是在软件开发常用一种数据组织形式。</p>
+<p>输出</p>
+<pre><code class="language-json">[
+  {
+    &quot;book_id&quot;: 1,
+    &quot;title&quot;: &quot;The Secret Garden&quot;,
+    &quot;author&quot;: &quot;Frances Hodgson Burnett&quot;,
+    &quot;genre&quot;: &quot;Children's Literature&quot;
+  },
+  {
+    &quot;book_id&quot;: 2,
+    &quot;title&quot;: &quot;The Martian&quot;,
+    &quot;author&quot;: &quot;Andy Weir&quot;,
+    &quot;genre&quot;: &quot;Science Fiction&quot;
+  },
+  {
+    &quot;book_id&quot;: 3,
+    &quot;title&quot;: &quot;Murder on the Orient Express&quot;,
+    &quot;author&quot;: &quot;Agatha Christie&quot;,
+    &quot;genre&quot;: &quot;Mystery&quot;
+  }
+]
+
+</code></pre>
+<h3 id="策略3-要求模型检查条件是否满足">策略3: 要求模型检查条件是否满足</h3>
+<p>检查完成任务的所需的条件是否满足</p>
+<p><strong>例：检查内容是否包含一系列指示</strong></p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>提供的文本将用三个引号括起来。如果它包含一系列的指示，那么请按以下格式重新编写这些指示：
+
+步骤1 - ...
+步骤2 - …
+…
+步骤N - …
+
+如果文本中不包含一系列的指示，则简单地写上 &quot;未提供步骤&quot;
+'''
+泡一杯茶很简单！首先，你需要把一些水烧开。在此期间，拿一个杯子并放入一个茶包。一旦水足够热，只需将其倒在茶包上。让茶浸泡一会儿。几分钟后，取出茶包。如果喜欢，可以加入一些糖或牛奶调味。就是这样！你可以享受一杯美味的茶了。
+'''
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>步骤1 - 泡一杯茶很简单！首先，你需要把一些水烧开。
+步骤2 - 在此期间，拿一个杯子并放入一个茶包。
+步骤3 - 一旦水足够热，只需将其倒在茶包上。
+步骤4 - 让茶浸泡一会儿。
+步骤5 - 几分钟后，取出茶包。
+步骤6 - 如果喜欢，可以加入一些糖或牛奶调味。
+步骤7 - 就是这样！你可以享受一杯美味的茶了。
+</code></pre>
+<p>值得注意的是， 输出的内容并不总是完全一致， 这是一个难点， 很多开发者都非常的苦脑， 不能获得确定的输出， 会让程序的逻辑无法正确的运行下去。</p>
+<p><strong>例： 检查条件不满足的情况</strong></p>
+<p>可以指令中增加一个条件检查或判断</p>
+<blockquote>
+<p>prompt</p>
+<p>这个例子中的文本不满足包含的一系列指示(instruction)</p>
+</blockquote>
+<pre><code>供的文本将用三个引号括起来。如果它包含一系列的指示，那么请按以下格式重新编写这些指示：
+
+步骤1 - ...
+步骤2 - …
+…
+步骤N - …
+
+如果文本中不包含一系列的指示，则简单地写上 &quot;未提供步骤&quot;
+'''
+今天阳光明媚，鸟儿在歌唱。今天是个美好的日子，适合去公园散步。花儿盛开，树木在微风中轻轻摇曳。人们外出享受着宜人的天气。一些人在野餐，而其他人则在玩游戏或者简单地躺在草地上放松。这是一个完美的日子，可以在户外享受并欣赏大自然的美丽。
+'''
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>未提供步骤
+</code></pre>
+<figure data-type="image" tabindex="2"><img src="./images/image_20240325181636964.png" alt="image_20240325181636964" loading="lazy"></figure>
+<h3 id="策略4-小样本提示">策略4： “小样本”提示</h3>
+<p>给模型举一个正确的或成功的例子。 然后让模型执行任务。</p>
+<p>例： 和示例风格保持一致风格的回答</p>
+<blockquote>
+<p>prompt</p>
+<p>给出如下风格的例子</p>
+</blockquote>
+<pre><code>你的任务是以下面的一致的格式回答
+
+&lt;child&gt;: 教我耐心。
+
+&lt;grandparent&gt;: 雕刻最深峡谷的河流源自一处不起眼的泉水；最宏伟的交响乐始于一声孤独的音符；最复杂的织锦始于一根孤独的线。 
+
+&lt;child&gt;: 教我韧性。
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>&lt;grandparent&gt;: 最坚固的树木从最强烈的风暴中生长出来；最坚定的人生理由从最艰难的时刻中诞生；最耀眼的钻石经历最高温度和最大压力而成。
+</code></pre>
+<figure data-type="image" tabindex="3"><img src="./images/image_20240323211436741.png" alt="image_20240323211436741" loading="lazy"></figure>
+<p><font color="red"> <strong>小建议</strong> </font></p>
+<blockquote>
+<p>我们在使用chatgpt的时候， 尽可能让一个聊天会话只聊一个主题。 多主题的聊天内容会导致因为上下文的混淆， 让模型给出误导性的答案。 <strong>如果要开启新话题， 就开一个新的会话。</strong></p>
+</blockquote>
+<h2 id="原则2指导模型思考一步一步解决问题">原则2：指导模型思考一步一步解决问题</h2>
+<p>神经网络模型本质上还是一个算概率的活， 因此如果直接让模型给出答案， 他给出的答案可能是过去训练时， 输入了大量错误的答案。</p>
+<p>因此， 因此，大语言模型也会给出概率较高的答案， 但不一定正确的答案。</p>
+<p><strong>不要让模型直接给你答案， 而是把解决问题的方法一步一步拆解开， 指导模型帮最终推导出答案。</strong></p>
+<h3 id="策略1指定完成任务所需的步骤">策略1：指定完成任务所需的步骤</h3>
+<p>步骤1: ...</p>
+<p>步骤2: ...</p>
+<p>步骤3: ...</p>
+<p>...</p>
+<p>步骤N: ...</p>
+<p>step by step</p>
+<p><strong>例： 指示完成一项任务需要步骤</strong></p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>1 - 将下面由三个反引号分隔的文本进行总结，用一句话描述。
+
+2 - 将总结翻译成英语。
+
+3 - 在英语总结中列出每个名字。
+
+4 - 输出一个包含以下键的 JSON 对象：english_summary、num_names。
+
+文本：
+```
+在一个迷人的村庄里，兄弟姐妹杰克和吉尔踏上了从山顶井口取水的探险之旅。当他们欢快地唱着歌攀登时，不幸降临了——杰克在一块石头上绊倒，滚下了山坡，吉尔紧随其后。尽管稍微受了点伤，但他们俩还是安然无恙地回到了家中，得到了慰藉的拥抱。尽管遭遇了不幸，但他们的冒险精神仍然旺盛，他们继续欢快地探索着。
+```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>1. 总结： 
+在一个迷人的村庄里，兄弟姐妹杰克和吉尔在探险途中遭遇了不幸，但最终安全返回家中，他们的探险精神未受影响。  
+2. 英语翻译：  
+In a charming village, siblings Jack and Jill faced misfortune on their adventure but returned home safely, their adventurous spirit undiminished.  
+3. 列出的名字：  
+Jack, Jill  
+4. JSON 对象输出：  
+```json
+{
+  &quot;english_summary&quot;: &quot;In a charming village, siblings Jack and Jill faced misfortune on their adventure but returned home safely, their adventurous spirit undiminished.&quot;,
+  &quot;num_names&quot;: 2
+}
+```
+</code></pre>
+<p><strong>例：地道的英文表达</strong></p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>当心！“友谊是一种精神食品，它无法用钱来购买，也无法用权力来得到。”
+
+1. 翻译为英文
+2. 将翻译的英文改写更地道英语表达
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>1. &quot;Beware! 'Friendship is a spiritual nourishment, it cannot be bought with money, nor obtained with power.'&quot;
+
+2. &quot;Watch out! 'Friendship is like soul food, it can't be purchased with cash or acquired through influence.'&quot;
+</code></pre>
+<h3 id="策略2-要求模型按指定的格式输出">策略2: 要求模型按指定的格式输出</h3>
+<p>prompt</p>
+<pre><code>我们的任务是执行以下操作： 
+1 - 用1句话总结以下，以&lt;&gt;分隔的文本。 
+2 - 将摘要翻译成英语。 
+3 - 在英语摘要中列出每个名字。 
+4 - 输出一个包含以下键的json对象：english_summary，num_names。
+
+使用以下格式:
+Text: &lt;text to summarize&gt;
+Summary: &lt;summary&gt;
+Translation: &lt;summary translation&gt;
+Names: &lt;list of names in summary&gt;
+Output JSON: &lt;json with summary and num_names&gt;
+
+Text: &lt;在一个迷人的村庄里，兄弟姐妹杰克和吉尔踏上了从山顶井口取水的探险之旅。当他们欢快地唱着歌攀登时，不幸降临了——杰克在一块石头上绊倒，滚下了山坡，吉尔紧随其后。尽管稍微受了点伤，但他们俩还是安然无恙地回到了家中，得到了慰藉的拥抱。尽管遭遇了不幸，但他们的冒险精神仍然旺盛，他们继续欢快地探索着。&gt;
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>Text: 在一个迷人的村庄里，兄弟姐妹杰克和吉尔踏上了从山顶井口取水的探险之旅。当他们欢快地唱着歌攀登时，不幸降临了——杰克在一块石头上绊倒，滚下了山坡，吉尔紧随其后。尽管稍微受了点伤，但他们俩还是安然无恙地回到了家中，得到了慰藉的拥抱。尽管遭遇了不幸，但他们的冒险精神仍然旺盛，他们继续欢快地探索着。
+
+Summary: 杰克和吉尔在探险中受伤，但安然无恙地回到家中，并继续他们的冒险精神。
+
+Translation: Jack and Jill got injured during the adventure but safely returned home and continued their adventurous spirit.
+
+Names: Jack, Jill
+
+Output JSON: 
+```json
+{
+  &quot;english_summary&quot;: &quot;Jack and Jill got injured during the adventure but safely returned home and continued their adventurous spirit.&quot;,
+  &quot;num_names&quot;: 2
+}
+```
+</code></pre>
+<h3 id="策略3指示模型自己解决问题">策略3：指示模型自己解决问题</h3>
+<p>在模型草率的得出结论前， 让它自行解决问题。</p>
+<p>有时候需要我们指导模型去自行推理出解决方案， 进而我们会得出很好的结果。</p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>确定学生的解决方案是否正确。
+
+问题：
+我正在建造太阳能发电装置，需要帮助计算财务。
+- 土地每平方英尺100美元
+- 太阳能板每平方英尺250美元
+- 我已经谈好的维护合同每年固定费用10万美元，另外每平方英尺额外费用10美元
+第一年运营的总成本如何，取决于安装面积。
+
+学生的解决方案：
+设 x 为装置的面积（平方英尺）。
+费用：
+1. 土地费用：100x
+2. 太阳能板费用：250x
+3. 维护费用：100,000 + 100x
+总成本：100x + 250x + 100,000 + 100x = 450x + 100,000
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>学生的解决方案基本正确。他们正确地将每项费用与安装面积相关联，并且正确地计算了总成本。因此，解决方案应该是正确的。
+</code></pre>
+<blockquote>
+<p><font color="red" > 注意，学生的解决方案实际上是不正确的。<br>
+我们可以通过指导模型首先解决自己的方案来修正这个问题。</font></p>
+</blockquote>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>你的任务是确定学生的解决方案是否正确。
+要解决此问题，请执行以下操作：
+- 首先，制定自己的问题解决方案，包括最终总数。
+- 然后将您的解决方案与学生的解决方案进行比较 
+并评估学生的解决方案是否正确。
+不要决定学生的解决方案是否正确，直到
+你自己做了这个问题。
+
+使用以下格式：
+问题：
+'''
+{问题在这里}
+'''
+学生解决方案：
+'''
+{学生的解决方案在这里}
+'''
+实际解决方案：
+'''
+{在此处制定解决方案和解决方案的步骤}
+'''
+
+'''
+{是或否}
+'''
+学生答案：
+'''
+{正确或不正确}
+'''
+
+问题：
+'''
+我正在建造一个太阳能装置，我需要帮助解决财务问题。
+- 土地成本 $100 / 平方英尺
+- 我可以以 250 美元/平方英尺的价格购买太阳能电池板
+- 我协商了一份维护合同，每年将花费我 10 万美元，以及额外的 10 美元/平方英尺
+第一年运营的总成本与平方英尺数的函数是多少。
+'''
+学生解决方案：
+'''
+设 x 是安装的大小（以平方英尺为单位）。
+成本：
+1.土地成本：100倍
+2.太阳能电池板成本：250x
+3.维护成本：100,000+100x
+总成本：100x + 250x + 100,000 + 100x = 450x + 100,000
+'''
+实际解决方案：
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>'''
+实际解决方案：
+总成本 = 土地成本 + 电池板成本 + 维护成本
+
+土地成本 = 100 * x （x 为安装的大小，单位：平方英尺）
+电池板成本 = 250 * x
+维护成本 = 100,000（固定部分）+ 10 * x（与安装大小成比例）
+
+总成本 = 100x + 250x + 100,000 + 10x = 360x + 100,000
+'''
+
+学生的解是否与刚才计算的实际解相同：
+'''
+不是
+'''
+
+学生答案：
+'''
+不正确
+'''
+</code></pre>
+<h2 id="模型限制幻觉">模型限制：幻觉</h2>
+<blockquote>
+<p>大语言模型的幻觉就是他会一本正经的胡扯。</p>
+<p>对于模型给出的回答， 你要持批判态度。</p>
+</blockquote>
+<p>大语言模型幻觉是由大型神经网络模型生成的虚假结果。这可能表现为图像、文本或音频中不合理或虚构的信息。了解和处理这些幻觉对确保模型可靠性至关重要。</p>
+<p>LLM 根据给定的输入提示词逐个预测下一个词（也就是标记），从而生成回答。在大多数情况下，模型的输出是与提问相关的，并且完全可用，但是在使用语言模型时需要小心，因为它们给出的回答可能不准确。这种回答通常被称为 AI 幻觉，即 AI 自信地给出回答，但这些回答可能是错误的，或涉及虚构的信息。对于依赖 GPT 的用户来说，AI 幻觉可能带来危险。你需要仔细核对并批判性地审视模型的回答。</p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>请介绍一下 Boie 推出的 AeroGlide UltraSlim 智能牙刷。
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>AeroGlide UltraSlim智能牙刷是Boie推出的一款高科技产品。它采用先进的技术设计，拥有超薄的刷头，可有效清洁牙齿表面和牙缝。此外，它还配备了智能功能，如定时提醒和连接手机应用程序，帮助用户更好地监控和改善口腔健康。这款牙刷的设计简洁时尚，易于使用，是现代生活中口腔护理的理想选择。
+</code></pre>
+<p>Boie不是一个真实存在的公司， 更没有AeroGlide UltraSlim 这款产品。</p>
+<h2 id="其他经验">其他经验</h2>
+<ul>
+<li>chatgpt有记忆能力， 一个会话中，chatgpt会根据上下文提示给出回答
+<ul>
+<li>如果为了不受历史聊天的影响， 最好重新开一个会话</li>
+</ul>
+</li>
+<li>国内模型输出不稳定，对编写prompt难度很大，建议尽可能使用chatgpt或claude或其他大语言模型</li>
+</ul>
+<h1 id="第二章-迭代优化你的prompt">第二章 迭代优化你的prompt</h1>
+<p>第一次编写的 prompt，几乎不可能达到我们的预期。 我们需要对 prompt 迭代几轮， 这样就能达到我们预期。</p>
+<p><strong>需求： 为某产品编写营销文案。</strong></p>
+<pre><code>你的任务是协助市场团队根据技术规格单为零售网站创建产品描述。
+
+根据技术规格单提供的信息编写产品描述，使用三个反引号括起来的内容。
+
+技术规格单：
+```
+概览
+- 属于一系列美丽的中世纪办公家具，包括文件柜、书桌、书架、会议桌等。
+- 多种外壳颜色和底座涂装可选。
+- 提供塑料背部和正面面料（SWC-100）或全面料（SWC-110）选项，有10种布料和6种皮革可选。
+- 底座涂装选项有：不锈钢、哑光黑、光泽白或铬色。
+- 椅子可选择搭配或不搭配扶手。
+- 适用于家庭或商务场所。
+- 合格用于合同使用。
+
+构造
+- 五轮塑料涂层铝制底座。
+- 气动椅高调节，方便升降。
+
+尺寸
+- 宽度 53 厘米 | 20.87 英寸
+- 深度 51 厘米 | 20.08 英寸
+- 高度 80 厘米 | 31.50 英寸
+- 座高 44 厘米 | 17.32 英寸
+- 座深 41 厘米 | 16.14 英寸
+
+选项
+- 软质或硬质地板轮选项。
+- 座垫泡沫密度可选两种：中等（1.8 磅/立方英尺）或高（2.8 磅/立方英尺）。
+- 无扶手或8位置PU扶手。
+
+材料
+外壳底座滑块
+- 铸铝，改性尼龙 PA6/PA66 涂层。
+- 壳体厚度：10 毫米。
+座椅
+- HD36 泡沫
+
+原产地
+- 意大利
+```
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>这款中世纪办公家具系列展现出优雅的设计和实用性的完美结合。无论您是在家中还是商务场所使用，都能为您提供舒适和风格。
+
+外观：
+这一系列包括文件柜、书桌、书架、会议桌等，每一件都经过精心设计，呈现出中世纪的美感。您可以根据个人喜好选择多种外壳颜色和底座涂装，让家具与您的装饰风格完美融合。此外，我们提供塑料背部和正面面料（SWC-100）或全面料（SWC-110）选项，涵盖10种布料和6种皮革供您选择，确保您的家具与您的品味相得益彰。
+
+构造：
+这些家具采用高品质材料制成，稳固耐用。铝制底座带有五轮塑料涂层，提供稳定的支撑和灵活的移动性。椅子配有气动高度调节功能，让您可以轻松调整座椅高度，确保舒适的工作姿势。
+
+尺寸：
+每件家具都经过精确设计，确保尺寸合适且舒适。宽53厘米，深51厘米，高80厘米，座高44厘米，座深41厘米，适合大多数场合和体型的使用。
+
+选项：
+我们考虑到了不同用户的需求，提供了多种选项。您可以根据地板类型选择软质或硬质地板轮，以确保家具在移动时不会划伤地板。此外，座垫泡沫密度可选两种：中等（1.8磅/立方英尺）或高（2.8磅/立方英尺），以满足您对舒适度的不同需求。您还可以选择椅子是否配备扶手，有无扶手或8位置PU扶手供您选择。
+
+材料：
+这些家具采用高品质材料制成，外壳底座滑块采用铸铝，改性尼龙PA6/PA66涂层，确保稳固耐用。座椅采用HD36泡沫，提供舒适的坐感。
+
+原产地：
+我们的家具源自意大利，以其精湛的工艺和优质的材料享誉全球。
+</code></pre>
+<p><strong>以上prompt返回的内容的问题是</strong>：</p>
+<ol>
+<li>返回的文本太长；</li>
+<li>聚焦在了错误的细节；</li>
+<li>需要一个表格的描述。</li>
+</ol>
+<p>通过迭代的方法，不断的完善prompt</p>
+<p>这跟写代码调试一样， 先编写代码， 然后编译调试， 看看报什么错， 分析一下原因，修改代码后， 继续重复。  因此如果不用担心， 第一次写的prompt 不太能工作， 这很正常。</p>
+<pre><code class="language-mermaid">graph LR
+开始--&gt;Prompt --&gt; 经验结果--&gt;错误分析--&gt;新思路--&gt;Prompt
+</code></pre>
+<p><strong>最多不要超过50个字</strong></p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code class="language-markdown">你的任务是协助市场团队根据技术规格单为零售网站创建产品描述。
+
+根据技术规格单提供的信息编写产品描述，使用三个反引号括起来的内容。
+要求最多不要超过50个字。 
+技术规格单：
+```
+概览
+- 属于一系列美丽的中世纪办公家具，包括文件柜、书桌、书架、会议桌等。
+- 多种外壳颜色和底座涂装可选。
+- 提供塑料背部和正面面料（SWC-100）或全面料（SWC-110）选项，有10种布料和6种皮革可选。
+- 底座涂装选项有：不锈钢、哑光黑、光泽白或铬色。
+- 椅子可选择搭配或不搭配扶手。
+- 适用于家庭或商务场所。
+- 合格用于合同使用。
+
+构造
+- 五轮塑料涂层铝制底座。
+- 气动椅高调节，方便升降。
+
+尺寸
+- 宽度 53 厘米 | 20.87 英寸
+- 深度 51 厘米 | 20.08 英寸
+- 高度 80 厘米 | 31.50 英寸
+- 座高 44 厘米 | 17.32 英寸
+- 座深 41 厘米 | 16.14 英寸
+
+选项
+- 软质或硬质地板轮选项。
+- 座垫泡沫密度可选两种：中等（1.8 磅/立方英尺）或高（2.8 磅/立方英尺）。
+- 无扶手或8位置PU扶手。
+
+材料
+外壳底座滑块
+- 铸铝，改性尼龙 PA6/PA66 涂层。
+- 壳体厚度：10 毫米。
+座椅
+- HD36 泡沫
+
+原产地
+- 意大利
+```
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>美丽的中世纪办公家具系列，多种颜色和底座涂装选择。气动调节高度，适用于家庭或商务场所。
+</code></pre>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>你的任务是帮助营销团队根据技术事实表创建一份产品描述，用于零售网站。
+
+根据三个反引号包围的技术规格中提供的信息编写产品描述。
+
+描述面向家具零售商，因此应具有技术性质，侧重于产品所使用的材料。
+
+在描述末尾，包括技术规格中的每个7字符产品ID。
+
+描述之后，包括一个表格，其中列出了产品的尺寸。表格应包含两列。第一列包括尺寸名称。第二列仅包括以英寸为单位的测量值。
+
+给表格加上标题'产品尺寸'。
+
+将所有内容格式化为markdown文本。将描述放在一个引用中。
+
+```
+概览
+- 属于一系列美丽的中世纪办公家具，包括文件柜、书桌、书架、会议桌等。
+- 多种外壳颜色和底座涂装可选。
+- 提供塑料背部和正面面料（SWC-100）或全面料（SWC-110）选项，有10种布料和6种皮革可选。
+- 底座涂装选项有：不锈钢、哑光黑、光泽白或铬色。
+- 椅子可选择搭配或不搭配扶手。
+- 适用于家庭或商务场所。
+- 合格用于合同使用。
+
+构造
+- 五轮塑料涂层铝制底座。
+- 气动椅高调节，方便升降。
+
+尺寸
+- 宽度 53 厘米 | 20.87 英寸
+- 深度 51 厘米 | 20.08 英寸
+- 高度 80 厘米 | 31.50 英寸
+- 座高 44 厘米 | 17.32 英寸
+- 座深 41 厘米 | 16.14 英寸
+
+选项
+- 软质或硬质地板轮选项。
+- 座垫泡沫密度可选两种：中等（1.8 磅/立方英尺）或高（2.8 磅/立方英尺）。
+- 无扶手或8位置PU扶手。
+
+材料
+外壳底座滑块
+- 铸铝，改性尼龙 PA6/PA66 涂层。
+- 壳体厚度：10 毫米。
+座椅
+- HD36 泡沫
+
+原产地
+- 意大利
+```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<figure data-type="image" tabindex="4"><img src="./images/image_20240326155434891.png" alt="image_20240326155434891" loading="lazy"></figure>
+<h1 id="第三章-文本总结">第三章 文本总结</h1>
+<h2 id="用一个句子词字符的限制概括内容">用一个句子/词/字符的限制概括内容</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>你的任务是从电子商务网站的产品评论中生成一个简短的摘要。
+
+请在三个反引号中将以下评论总结为最多30个词。
+
+评论: ```在女儿的生日时给她买了这只熊猫毛绒玩具，她非常喜欢，随身携带。它柔软可爱，面部表情友好。但相对于我支付的价格来说，它有点小。我觉得可能有其他选项，同样的价格但更大一些。比预期提前了一天送达，所以我在把它送给她之前还有时间自己玩了一下。```
+</code></pre>
+<h2 id="以运输和交付为重点进行总结">以运输和交付为重点进行总结</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>你的任务是从电子商务网站的产品评论中生成一个简短的摘要，以向运输部门提供反馈。
+
+请在三个反引号中将以下评论总结为最多30个词，并侧重于提及产品的运输和交付方面。
+评论: ```在女儿的生日时给她买了这只熊猫毛绒玩具，她非常喜欢，随身携带。它柔软可爱，面部表情友好。但相对于我支付的价格来说，它有点小。我觉得可能有其他选项，同样的价格但更大一些。比预期提前了一天送达，所以我在把它送给她之前还有时间自己玩了一下。```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>评论：```产品送达及时，提前一天送达。但产品尺寸对价格不太合适。建议考虑提供更大尺寸的选项。```
+</code></pre>
+<h2 id="重点总结价格和价值感受">重点总结价格和价值感受</h2>
+<blockquote>
+<p>promt</p>
+</blockquote>
+<pre><code>任务是从电子商务网站的产品评论中生成一个简短的摘要，以便向定价部门提供反馈。该部门负责确定产品的价格。
+
+请在三个反引号中将以下评论总结为最多30个词，侧重于与价格和感知价值相关的方面。
+
+评论: ```在女儿的生日时给她买了这只熊猫毛绒玩具，她非常喜欢，随身携带。它柔软可爱，面部表情友好。但相对于我支付的价格来说，它有点小。我觉得可能有其他选项，同样的价格但更大一些。比预期提前了一天送达，所以我在把它送给她之前还有时间自己玩了一下。```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>评论：```产品柔软可爱，但相对价格稍小。建议提供更大选项以提高感知价值。提前一天送达，增加购买满意度。```
+</code></pre>
+<h2 id="用提取来替代总结">用“提取”来替代“总结”</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>你的任务是从电子商务网站的产品评论中提取相关信息，以向运输部门提供反馈。
+
+请从以下评论中提取与运输和交付相关的信息，限制在30个词以内。
+
+评论: ```在女儿的生日时给她买了这只熊猫毛绒玩具，她非常喜欢，随身携带。它柔软可爱，面部表情友好。但相对于我支付的价格来说，它有点小。我觉得可能有其他选项，同样的价格但更大一些。比预期提前了一天送达，所以我在把它送给她之前还有时间自己玩了一下。```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>提前一天送达，增加购买满意度。
+</code></pre>
+<h1 id="第四章-推理文本的类型">第四章 推理文本的类型</h1>
+<p>本章你将从产品评论和新闻文章中推断情感和主题。</p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>以下产品评论的情感是什么，使用三个反引号进行分隔？
+评论文本：'''需要一个漂亮的卧室灯，这款灯还带有额外的储物空间，价格也不算太高。快递送到的时候，我们灯的拉线断了，但公司很乐意寄来了一根新的。几天之内就送到了。安装很简单。我缺了一个零件，所以我联系了他们的客服，他们很快就给我寄来了缺失的零件！Lumina 看起来是一家很重视客户和产品的好公司
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>```积极```
+
+</code></pre>
+<figure data-type="image" tabindex="5"><img src="./images/image_20240327122412655.png" alt="image_20240327122412655" loading="lazy"></figure>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>以下是这个产品评论的情感，用三个反引号括起来：
+评论文本：'''需要一个漂亮的卧室灯，这款灯还带有额外的储物空间，价格也不算太高。快递送到的时候，我们灯的拉线断了，但公司很乐意寄来了一根新的。几天之内就送到了。安装很简单。我缺了一个零件，所以我联系了他们的客服，他们很快就给我寄来了缺失的零件！Lumina 看起来是一家很重视客户和产品的好公司
+'''
+给出你的答案，只用一个词，要么是“积极”，要么是“消极”。
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>积极
+</code></pre>
+<h2 id="识别情感类型">识别情感类型</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>识别以下评论作者表达的情感列表。列表中不超过五个项目。将你的答案格式化为逗号分隔的小写单词列表。
+评论文本：'''需要一个漂亮的卧室灯，这款灯还带有额外的储物空间，价格也不算太高。快递送到的时候，我们灯的拉线断了，但公司很乐意寄来了一根新的。几天之内就送到了。安装很简单。我缺了一个零件，所以我联系了他们的客服，他们很快就给我寄来了缺失的零件！Lumina 看起来是一家很重视客户和产品的好公司
+'''
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>满意,愉快,满足,感激,信任
+</code></pre>
+<h2 id="识别愤怒">识别愤怒</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>以下评论的作者是否在表达愤怒？评论用三个反引号括起来。回答要么是，要么否。
+评论文本：'''需要一个漂亮的卧室灯，这款灯还带有额外的储物空间，价格也不算太高。快递送到的时候，我们灯的拉线断了，但公司很乐意寄来了一根新的。几天之内就送到了。安装很简单。我缺了一个零件，所以我联系了他们的客服，他们很快就给我寄来了缺失的零件！Lumina 看起来是一家很重视客户和产品的好公司
+'''
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>否
+</code></pre>
+<h2 id="提取客户评论中的产品和公司名称">提取客户评论中的产品和公司名称</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>&quot;识别评论文本中的以下项目：
+	- 由评论者购买的物品
+	- 制造物品的公司
+评论用三个反引号括起来。
+将您的回应格式化为一个 csv 对象，其中
+&quot;Item&quot; 和 &quot;Brand&quot; 是键。
+如果信息不存在，请将值设为 &quot;未知&quot;。
+尽可能简洁地回答。&quot;
+评论文本：'''需要一个漂亮的卧室灯，这款灯还带有额外的储物空间，价格也不算太高。快递送到的时候，我们灯的拉线断了，但公司很乐意寄来了一根新的。几天之内就送到了。安装很简单。我缺了一个零件，所以我联系了他们的客服，他们很快就给我寄来了缺失的零件！Lumina 看起来是一家很重视客户和产品的好公司
+'''
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>Item,Brand
+卧室灯,Lumina
+</code></pre>
+<h2 id="同时做多项任务">同时做多项任务</h2>
+<blockquote>
+<p>promot</p>
+</blockquote>
+<pre><code>从评论中识别以下项目：
+- 情感（积极或消极）
+- 评论者是否表达了愤怒？（是或否）
+- 评论者购买的物品
+- 制造该物品的公司
+
+评论以三个反引号分隔。
+将您的响应格式化为 json 对象
+“情绪”、“愤怒”、“物品”和“品牌”为键。
+如果信息不存在，请使用“未知”
+作为值。
+让您的回复尽可能简短。
+将愤怒值设置为布尔值。
+评论文本：'''需要一个漂亮的卧室灯，这款灯还带有额外的储物空间，价格也不算太高。快递送到的时候，我们灯的拉线断了，但公司很乐意寄来了一根新的。几天之内就送到了。安装很简单。我缺了一个零件，所以我联系了他们的客服，他们很快就给我寄来了缺失的零件！Lumina 看起来是一家很重视客户和产品的好公司
+'''
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>{
+  &quot;情绪&quot;: &quot;积极&quot;,
+  &quot;愤怒&quot;: false,
+  &quot;物品&quot;: &quot;卧室灯&quot;,
+  &quot;品牌&quot;: &quot;Lumina&quot;
+}
+
+</code></pre>
+<h2 id="主题推断">主题推断</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>确定以下文本中正在讨论的五个主题，这些主题由三个反引号分隔。
+让每一项长一到两个字。
+将您的回复格式化为以逗号分隔的项目列表。
+文本：```
+最近政府进行的一项调查中，公共部门员工被要求评价他们所在部门的满意度。结果显示，NASA 是最受欢迎的部门，满意度达到了 95%。
+
+一名NASA员工约翰·史密斯评论了这些发现，他说：“我对NASA位居榜首并不感到惊讶。这是一个非常棒的工作地方，有着令人惊叹的人才和令人难以置信的机会。能成为这样一个创新组织的一员，我感到自豪。”
+
+NASA的管理团队也对这一结果表示欢迎，NASA主任汤姆·约翰逊表示：“听到我们的员工对NASA的工作感到满意，我们感到非常高兴。我们拥有一支才华横溢、敬业奉献的团队，他们不知疲倦地工作以实现我们的目标，看到他们的辛勤工作取得了成果，真是太棒了。”
+
+调查还显示，社会保障管理局的满意度最低，只有45%的员工表示对工作满意。政府承诺解决调查中员工提出的问题，并努力改善各部门的工作满意度。
+```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>- 调查结果
+- NASA的满意度
+- NASA员工的评论
+- NASA管理团队的回应
+- 社会保障管理局的满意度
+</code></pre>
+<h2 id="制作特定主题的新闻判断">制作特定主题的新闻判断</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>确定以下主题列表中的每个项目是否在下文中作为一个话题。文本用三个反引号括起来。
+
+主题列表：{&quot;nasa&quot;, &quot;local government&quot;, &quot;engineering&quot;,     &quot;employee satisfaction&quot;, &quot;federal government&quot;}
+给出一个答案例表，形式如{主题： true/false}
+文本样例：
+```
+最近政府进行的一项调查中，公共部门员工被要求评价他们所在部门的满意度。结果显示，NASA 是最受欢迎的部门，满意度达到了 95%。
+
+一名NASA员工约翰·史密斯评论了这些发现，他说：“我对NASA位居榜首并不感到惊讶。这是一个非常棒的工作地方，有着令人惊叹的人才和令人难以置信的机会。能成为这样一个创新组织的一员，我感到自豪。”
+
+NASA的管理团队也对这一结果表示欢迎，NASA主任汤姆·约翰逊表示：“听到我们的员工对NASA的工作感到满意，我们感到非常高兴。我们拥有一支才华横溢、敬业奉献的团队，他们不知疲倦地工作以实现我们的目标，看到他们的辛勤工作取得了成果，真是太棒了。”
+
+调查还显示，社会保障管理局的满意度最低，只有45%的员工表示对工作满意。政府承诺解决调查中员工提出的问题，并努力改善各部门的工作满意度。
+```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code class="language-yaml">nasa: true
+local government: true
+engineering: false
+employee satisfaction: true
+federal government: true
+
+</code></pre>
+<h1 id="第五章-自然语言">第五章 自然语言</h1>
+<p>chatgpt 被训练能够支持多种语言。 你可以用他做为你的通用翻译器。 也可以帮你将语言进行语气变换。</p>
+<h2 id="翻译">翻译</h2>
+<h3 id="例1-简单的翻译">例1 简单的翻译</h3>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>将以下英文文本翻译为中文：
+```Hi, I would like to order a blender```
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>嗨，我想订购一个搅拌机。
+</code></pre>
+<h3 id="例2-翻译为多语言">例2  翻译为多语言</h3>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>将以下英文文本翻译为中文、日文、韩文：
+```Hi, I would like to order a blender```
+
+
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>中文：嗨，我想订购一个搅拌机。
+日文：こんにちは、ブレンダーを注文したいです。
+韩文：안녕하세요, 믹서기를 주문하고 싶습니다.
+</code></pre>
+<h2 id="例3-识别语种">例3 识别语种</h2>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>告诉我这是哪一种语言:
+```Combien coûte le lampadaire?```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>这是法语。
+</code></pre>
+<h2 id="转换语气">转换语气</h2>
+<p>写作风格可以根据预期的受众而变化。ChatGPT可以产生不同的语气。</p>
+<h3 id="例1-转换为正式用语">例1 转换为正式用语</h3>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>将以下俚语翻译成商务信函：
+&quot;先生/女士，我是乔。请您查阅这款落地灯的规格。&quot;
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>尊敬的先生/女士，
+
+我是乔。请您查看这款落地灯的规格。
+
+谢谢，
+
+[你的姓名]
+</code></pre>
+<h2 id="拼写检查语法检查">拼写检查/语法检查</h2>
+<p>以下是一些常见的语法和拼写问题以及LLM的响应。</p>
+<p>为了向LLM表示您希望它校对您的文本，您可以指示模型“校对”或“校对并更正”。</p>
+<h3 id="例-检查语法给出纠正版本">例 检查语法给出纠正版本</h3>
+<blockquote>
+<p>prompt</p>
+<p>这个例子以英文为例， 如果您有更好的中文示例， 请联系我。</p>
+<p>校对并纠正以下文本，并重写纠正后的版本。如果您找不到错误，只需说“未发现错误”。在文本周围不要使用任何标点符号：</p>
+</blockquote>
+<pre><code class="language-python">text = [ 
+  &quot;The girl with the black and white puppies have a ball.&quot;,  # The girl has a ball.
+  &quot;Yolanda has her notebook.&quot;, # ok
+  &quot;Its going to be a long day. Does the car need it’s oil changed?&quot;,  # Homonyms
+  &quot;Their goes my freedom. There going to bring they’re suitcases.&quot;,  # Homonyms
+  &quot;Your going to need you’re notebook.&quot;,  # Homonyms
+  &quot;That medicine effects my ability to sleep. Have you heard of the butterfly affect?&quot;, # Homonyms
+  &quot;This phrase is to cherck chatGPT for speling abilitty&quot;  # spelling
+]
+for t in text:
+    prompt = f&quot;&quot;&quot;Proofread and correct the following text
+    and rewrite the corrected version. If you don't find
+    and errors, just say &quot;No errors found&quot;. Don't use 
+    any punctuation around the text:
+    ```{t}```&quot;&quot;&quot;
+    response = get_completion(prompt)
+    print(response)
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>
+</code></pre>
+<figure data-type="image" tabindex="6"><img src="./images/image_20240327164032522.png" alt="image_20240327164032522" loading="lazy"></figure>
+<h2 id="我的经验">我的经验</h2>
+<p>关于翻译比较难的一点是当你翻译的内容带有指令的文本， gpt-3.5 经常搞错。 即便是你用了分割符。</p>
+<h3 id="例">例</h3>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>翻译为中文：
+```
+你的任务是将以下内容转换为表格：
+a=1, 2,3
+b=4,5,6
+c=7,8,9
+```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>Sure, here is the content translated into a table format:
+
+|      | a    | b    | c    |
+| ---- | ---- | ---- | ---- |
+| 1    | 1    | 4    | 7    |
+| 2    | 2    | 5    | 8    |
+| 3    | 3    | 6    | 9    |
+
+</code></pre>
+<p>输出的内容将正文当作指令执行了。</p>
+<p>你可以用下面的方法，来解决这个问题。</p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>将以下文本靠三个反引号包围，翻译为英文：
+```
+你的任务是将以下内容转换为表格：
+a=1, 2,3
+b=4,5,6
+c=7,8,9
+```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>```
+Your task is to convert the following content into a table:
+a=1, 2,3
+b=4,5,6
+c=7,8,9
+```
+</code></pre>
+<h1 id="第六章-文本内容生成">第六章 文本内容生成</h1>
+<p>给大语言模型一个简短的提示， 让大语言模型生成一封邮件、长文章。</p>
+<p>在这节课上， 根据用户的评论生成回复客户的邮件。</p>
+<p>你可告诉大语言模型，识别评论文本的情绪，是消极的还是积极的。</p>
+<p>要求大语言模型根据消极的/积极的 情绪 来生成相应的邮件。</p>
+<h2 id="从客户评论中生成一封电子邮件">从客户评论中生成一封电子邮件</h2>
+<h3 id="例-从客户评论生成电子邮件">例 从客户评论生成电子邮件</h3>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>您是一位客服AI助手。
+您的任务是发送一封电子邮件回复给一位重要客户。
+给定以```分隔的客户电子邮件，生成一封回复，感谢客户的评论。 如果情绪是积极的或中性的，请感谢他们的评论。 如果情绪是消极的，请道歉并建议他们联系客服。 确保使用评论中的具体细节。 以简洁、专业的语气写信。 以“AI客户代理”签署电子邮件。 
+客户评论：```所以，他们在11月份的某个时候仍然以约49美元的价格季节性销售这个17件套装，大约半价，但出于某种原因（可以称之为哄抬价格），到了12月第二周，同样的套装价格都上涨到了大约70到89美元之间。而11件套装的价格也比之前的销售价格29美元上涨了大约10美元左右。所以看起来还好，但如果你看底座的话，刀片锁入的部分看起来不像几年前的之前版本那么好，但我打算对它非常温柔（例如，我会先在搅拌机里将豆类、冰、米等硬物品搅碎，然后在搅拌机中搅拌成我想要的份量，然后切换到打蛋器刀片以获得更细的面粉，如果我需要更细/不那么多果渣，我会先使用交叉切割刀片制作冰沙，然后使用平刀片）。制作冰沙时的特别提示是，将水果和蔬菜切成细片并冷冻（如果使用菠菜-轻轻炖软菠菜然后冷冻直到使用时-如果制作果冻，使用小到中号的食品加工机），这样你就可以避免在制作冰沙时添加太多冰。大约一年后，电机开始发出奇怪的噪音。我打电话给客户服务，但保修期已经过期了，所以我不得不再买一个。顺便说一句：这类产品的整体质量已经下降了，所以他们有点依赖品牌认可度和消费者忠诚度来维持销售。大约两天就送到了。```
+评论情绪：```消积的```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>尊敬的客户，
+
+非常感谢您分享您的经验和反馈。我们对您提到的问题感到十分抱歉，我们的目标是提供高质量的产品和服务，而您的体验似乎没有达到我们的期望标准。对于您在12月第二周遇到的价格上涨以及产品质量下降的问题，我们深感遗憾。
+
+为了解决您的问题并改善您的体验，我们建议您直接联系我们的客户服务团队。他们将尽力协助您并提供可能的解决方案。我们致力于确保每位客户都获得满意的服务和产品，您的反馈对我们来说非常重要。
+
+再次感谢您抽出时间与我们分享您的看法和经历。如果您需要任何帮助或进一步的支持，请随时联系我们的客户服务团队。
+
+祝您一切顺利。
+
+AI客户代理
+</code></pre>
+<h3 id="提醒大语言模型利用客户电子邮件中的细节">提醒大语言模型利用客户电子邮件中的细节</h3>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>您是一位客服AI助手。
+您的任务是发送一封电子邮件回复给一位重要客户。
+给定以```分隔的客户电子邮件，生成一封回复，感谢客户的评论。 如果情绪是积极的或中性的，请感谢他们的评论。 
+如果情感是积极的或中性的，感谢他们的评论。
+如果情感是负面的，道歉并建议他们可以联系客户服务。
+确保使用评论中的具体细节。
+以简洁、专业的语气写作。
+客户评论：```所以，他们在11月份的某个时候仍然以约49美元的价格季节性销售这个17件套装，大约半价，但出于某种原因（可以称之为哄抬价格），到了12月第二周，同样的套装价格都上涨到了大约70到89美元之间。而11件套装的价格也比之前的销售价格29美元上涨了大约10美元左右。所以看起来还好，但如果你看底座的话，刀片锁入的部分看起来不像几年前的之前版本那么好，但我打算对它非常温柔（例如，我会先在搅拌机里将豆类、冰、米等硬物品搅碎，然后在搅拌机中搅拌成我想要的份量，然后切换到打蛋器刀片以获得更细的面粉，如果我需要更细/不那么多果渣，我会先使用交叉切割刀片制作冰沙，然后使用平刀片）。制作冰沙时的特别提示是，将水果和蔬菜切成细片并冷冻（如果使用菠菜-轻轻炖软菠菜然后冷冻直到使用时-如果制作果冻，使用小到中号的食品加工机），这样你就可以避免在制作冰沙时添加太多冰。大约一年后，电机开始发出奇怪的噪音。我打电话给客户服务，但保修期已经过期了，所以我不得不再买一个。顺便说一句：这类产品的整体质量已经下降了，所以他们有点依赖品牌认可度和消费者忠诚度来维持销售。大约两天就送到了。```
+评论情绪：```消积的```
+</code></pre>
+<blockquote>
+<p>输出</p>
+</blockquote>
+<pre><code>尊敬的客户，
+
+感谢您的评论。我们非常感谢您分享您对我们产品的看法。我们很高兴听到您对我们的产品有积极的评价。
+
+对于您提到的价格上涨和产品质量下降的问题，我们深感抱歉。我们会认真考虑您的反馈，并努力改进我们的产品和服务。
+
+如果您有任何其他问题或需要进一步的帮助，请随时联系我们的客户服务团队。我们将竭诚为您提供支持和协助。
+
+谢谢您再次选择我们的产品。
+
+祝您一切顺利！
+
+AI客户代理
+</code></pre>
+<h1 id="第七章-聊天机器人chatbot">第七章 聊天机器人（chatbot）</h1>
+<p>在本章中，实现针对特定任务或行为的聊天机器人。</p>
+<blockquote>
+<p>prompt</p>
+</blockquote>
+<pre><code>你是订单机器人，为一家披萨餐厅的提供自动服务，用于收集订单。
+首先，我会问候客人，然后收集订单，
+接着询问是自取还是外送。
+你会等待收集完整的订单，然后总结并最后确认客人是否还想再加点别的。
+如果是外送，你会询问地址。
+最后，你会收取付款。
+请确保清楚地说明所有选项、附加配料和尺寸，以便唯一地确定菜单上的项目。
+你会以简短、非常友好的方式进行回应。
+菜单包括：
+  意大利辣香肠披萨 12.95、10.00、7.00
+  芝士披萨 10.95、9.25、6.50
+  茄子披萨 11.95、9.75、6.75
+  薯条 4.50、3.50
+  希腊沙拉 7.25
+  配料：
+  额外芝士 2.00
+  蘑菇 1.50
+  意大利辣香肠 3.00
+  加拿大培根 3.50
+  AI酱 1.50
+  彩椒 1.00
+  饮料：
+  可乐 3.00、2.00、1.00
+  雪碧 3.00、2.00、1.00
+  瓶装水 5.00
+</code></pre>
+<figure data-type="image" tabindex="7"><img src="./images/image_20240327180426346.png" alt="image_20240327180426346" loading="lazy"></figure>
+<h1 id="第八章-大语言模型的基本原理未完成">第八章  大语言模型的基本原理（未完成）</h1>
+<p>不是机器学习算法出身， 关于模型原理相关的内容， 我推荐你看：</p>
+<ul>
+<li>
+<p><a href="https://learningprompt.wiki/zh-Hans/docs/ai-101/LLMs">LLMs </a> 作者写的非常好</p>
+<blockquote>
+<p>作者的这个网站非常实用， 可以用来学习prompt</p>
+</blockquote>
+</li>
+<li>
+<p>大语言模型应用开发极简入门</p>
+<blockquote>
+<p>如果不想买书，又找不到电子书，可以联系我</p>
+</blockquote>
+</li>
+</ul>
+<figure data-type="image" tabindex="8"><img src="./images/image_20240327183508373.png" alt="image_20240327183508373" loading="lazy"></figure>
+<h1 id="第九章-prompt框架正在更新中">第九章 Prompt框架（正在更新中）</h1>
+<h2 id="crispe-框架">CRISPE  框架</h2>
+<p><a href="https://github.com/mattnigh/ChatGPT3-Free-Prompt-List">Matt Nigh</a> 的 CRISPE Framework，比较适合用于编写 prompt 模板。CRISPE 分别代表以下含义：</p>
+<ul>
+<li>CR: Capacity and Role（能力与角色）。你希望 ChatGPT 扮演怎样的角色。</li>
+<li>I:Insight（洞察力），背景信息和上下文（坦率的说我觉得用Context 更好）。</li>
+<li>S： Statement（指令），你希望 ChatGPT 做什么。</li>
+<li>P：Personality（个性），你希望 ChatGPT 以什么风格或方式回答你。</li>
+<li>E：Experiment（尝试），要求 ChatGPT 为你提供多个答案。</li>
+</ul>
+<p>以下是这几个参数的例子：</p>
+<table>
+<thead>
+<tr>
+<th><strong>Step</strong></th>
+<th><strong>Example</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Capacity and Role</td>
+<td>Act as an expert on software development on the topic of machine learning frameworks, and an expert blog writer. 把你想象成机器学习框架主题的软件开发专家，以及专业博客作者。</td>
+</tr>
+<tr>
+<td>Insight</td>
+<td>The audience for this blog is technical professionals who are interested in learning about the latest advancements in machine learning. 这个博客的读者主要是有兴趣了解机器学习最新进展技术的专业人士。</td>
+</tr>
+<tr>
+<td>Statement</td>
+<td>Provide a comprehensive overview of the most popular machine learning frameworks, including their strengths and weaknesses. Include real-life examples and case studies to illustrate how these frameworks have been successfully used in various industries. 提供最流行的机器学习框架的全面概述，包括它们的优点和缺点。包括现实生活中的例子，和研究案例，以说明这些框架如何在各个行业中成功地被使用。</td>
+</tr>
+<tr>
+<td>Personality</td>
+<td>When responding, use a mix of the writing styles of Andrej Karpathy, Francois Chollet, Jeremy Howard, and Yann LeCun. 在回应时，混合使用 Andrej Karpathy、Francois Chollet、Jeremy Howard 和 Yann LeCun 的写作风格。</td>
+</tr>
+<tr>
+<td>Experiment</td>
+<td>Give me multiple different examples. 给我多个不同的例子。</td>
+</tr>
+</tbody>
+</table>
+<p>将所有的元素都组合在一起，就变成了这样的 prompt，对比基础 prompt 生成的结果会非常不一样。</p>
+<h2 id="图灵机式的框架">图灵机式的框架</h2>
+<p>作者是Mr.Bear， 我自己总结一个小框架， 大多数时候效果比较好。</p>
+<ul>
+<li>
+<p>Input: 给出执行指令需要上下文或其他信息。</p>
+</li>
+<li>
+<p>Instruction: 指令。 指示模型完成的任务， 处理方法或步骤。</p>
+</li>
+<li>
+<p>Output： 输出。 指示模型按你想要的格式输出。</p>
+</li>
+<li>
+<p>filter: 过滤， 可选项。</p>
+</li>
+</ul>
+<p>结上我在文中提到的原则和技巧， 辅助我上面的框架， 能满足大多数日常的工作。</p>
+<h1 id="第十章-总结">第十章 总结</h1>
+<p>如果你能从头到尾练习一遍，遇到一些问题，然后解决它们，相信你现在已经可以很熟练地使用ChatGPT完成你的工作了。</p>
+<p>首先，清晰和明确的表达指令是最基础也是最重要的。在工作中，这一点非常关键。指示模型完成任务时，首先应当清楚地描述工作内容，包括：</p>
+<ul>
+<li>任务是什么</li>
+<li>任务的背景信息是什么</li>
+<li>何时完成或交付</li>
+<li>交付标准是什么</li>
+</ul>
+<p>为了确保你的下属按照你期望的目标进行工作，你需要定期审查他们的工作，确保他们的工作在正确的轨道上。这就是我们在第二章中所说的，你需要让他们首先思考，然后再给予指导。</p>
+<p>你可以使用大型语言模型进行文本处理，例如对文章进行概括汇总，提取重要信息，通过文章内容推理出主题和情绪（积极/消极）。</p>
+<p>你可以用大型语言模型（ChatGPT）完成多语言的翻译。ChatGPT还可以用于生成不同风格的语句，例如轻松愉快的或表达愤怒的语句。</p>
+<p>你可以编写有效的提示词，帮助你生成邮件。当ChatGPT刚发布时，我曾用它为我老婆写过一封关于研究生入学的推荐信，效果非常好。我在上面的示例中为你展示了根据客户评论撰写回复邮件的例子。</p>
+<p>此外，最重要的是，不要让模型直接给出答案。你应该指导模型自己去解决问题。你可以为模型设计解决问题的路径，让模型按照你指示的路径自行推理出正确的答案。</p>
+<h1 id="第十一章-prompt-engineering-的练习">第十一章 Prompt Engineering 的练习</h1>
+<p>关于Prompt Engineer 是一个动手大于动脑的工作， 动脑也很重要。</p>
+<p>需要反复的练习和操作， 摸索大语言模型的经验。</p>
+<p>单单是学习任何一门课程或只看我的文章， 都无法保证你能高效的掌握所有 Prompt 的技巧。</p>
+<h1 id="参考">参考</h1>
+<p><a href="https://www.deeplearning.ai/courses/generative-ai-for-everyone/"><strong>generative ai for everyone</strong> </a></p>
+<p><a href="https://www.deeplearning.ai/courses/generative-ai-for-everyone/"><strong>ChatGPT Prompt Engineering for Developers</strong></a></p>
+<p><a href="https://learningprompt.wiki/"><strong>Learning Prompt</strong></a></p>
+<p><a href="https://learnprompting.org/"><strong>learningprompting</strong></a></p>
+<p><a href="https://www.moreusefulthings.com/prompts">Prompt提示词大全</a></p>
+<p><a href="https://baoyu.io/blog/prompt-engineering/translator-gpt-prompt-v2">直译、反思、意译：提升 GPT 翻译质量的一种新策略</a></p>
+<p><a href="https://promptperfect.jina.ai/">优化AI提示词 </a></p>
+<h1 id="about-me">About Me</h1>
+<p><a href="https://twitter.com/GreenPanda_111">Mr. Bear</a></p>
+<p><a href="https://ishell.online/">Blog</a></p>
+<p><a href="https://github.com/pandabear1024">github</a></p>
+<h1 id="版权声明">版权声明</h1>
+<p>本内容为独家版权， 如需转载，请联系本人。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Elasticsearch 和 Kibana 学习]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/elasticsearch-he-kibana-xue-xi/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/elasticsearch-he-kibana-xue-xi/">
+        </link>
+        <updated>2025-05-21T09:31:53.000Z</updated>
+        <content type="html"><![CDATA[<hr>
+<h2 id="第一步理解-elasticsearch-是什么">🧠 第一步：理解 Elasticsearch 是什么</h2>
+<p><strong>Elasticsearch</strong> 是一个分布式、开源的搜索和分析引擎，适合处理大规模的结构化或半结构化数据。它常用于：</p>
+<ul>
+<li>全文搜索</li>
+<li>日志分析（如配合 Filebeat、Logstash 使用）</li>
+<li>实时指标监控（如 APM）</li>
+<li>数据可视化（通常配合 Kibana）</li>
+</ul>
+<p>Elasticsearch 的核心是一个强大的 JSON 文档数据库，它支持复杂查询、高性能全文搜索和聚合分析。</p>
+<hr>
+<h2 id="第二步核心概念详解">🧱 第二步：核心概念详解</h2>
+<h3 id="1-文档document">1. <strong>文档（Document）</strong></h3>
+<ul>
+<li>Elasticsearch 的基本数据单位。</li>
+<li>一个文档是一个 JSON 对象。</li>
+<li>类似于数据库中的“行”。</li>
+</ul>
+<pre><code class="language-json">{
+  &quot;name&quot;: &quot;Audrey&quot;,
+  &quot;age&quot;: 28,
+  &quot;skills&quot;: [&quot;Python&quot;, &quot;Elasticsearch&quot;]
+}
+</code></pre>
+<h3 id="2-索引index">2. <strong>索引（Index）</strong></h3>
+<ul>
+<li>文档的集合，相当于数据库中的“表”。</li>
+<li>每个索引都有自己的名称和配置。</li>
+<li>文档必须属于某个索引。</li>
+</ul>
+<p>创建索引示例：</p>
+<pre><code class="language-bash">PUT /my_index
+</code></pre>
+<h3 id="3-映射mapping">3. <strong>映射（Mapping）</strong></h3>
+<ul>
+<li>定义索引中字段的结构（类似 SQL 的 schema）。</li>
+<li>包括字段的类型（如 <code>text</code>、<code>keyword</code>、<code>date</code>、<code>integer</code>）和属性（是否可被搜索、是否建立倒排索引等）。</li>
+</ul>
+<p>示例：</p>
+<pre><code class="language-bash">PUT /my_index
+{
+  &quot;mappings&quot;: {
+    &quot;properties&quot;: {
+      &quot;name&quot;: { &quot;type&quot;: &quot;text&quot; },
+      &quot;age&quot;: { &quot;type&quot;: &quot;integer&quot; },
+      &quot;join_date&quot;: { &quot;type&quot;: &quot;date&quot; }
+    }
+  }
+}
+</code></pre>
+<h3 id="4-类型type">4. <strong>类型（Type）</strong></h3>
+<ul>
+<li>老版本中一个索引可有多个“type”，但<strong>新版本已废弃 type 概念</strong>，每个索引只允许一个文档类型。</li>
+</ul>
+<hr>
+<h2 id="第三步基本操作使用-kibana-console">🔧 第三步：基本操作（使用 Kibana Console）</h2>
+<p>打开 Kibana Dev Tools，可以输入如下命令：</p>
+<h3 id="插入文档indexing">插入文档（Indexing）</h3>
+<pre><code class="language-bash">POST /my_index/_doc
+{
+  &quot;name&quot;: &quot;Alice&quot;,
+  &quot;age&quot;: 30,
+  &quot;skills&quot;: [&quot;Java&quot;, &quot;Elasticsearch&quot;]
+}
+</code></pre>
+<h3 id="查询文档search">查询文档（Search）</h3>
+<pre><code class="language-bash">GET /my_index/_search
+{
+  &quot;query&quot;: {
+    &quot;match&quot;: {
+      &quot;name&quot;: &quot;Alice&quot;
+    }
+  }
+}
+</code></pre>
+<h3 id="获取文档get">获取文档（Get）</h3>
+<pre><code class="language-bash">GET /my_index/_doc/1
+</code></pre>
+<h3 id="删除文档">删除文档</h3>
+<pre><code class="language-bash">DELETE /my_index/_doc/1
+</code></pre>
+<hr>
+<h2 id="第四步学习-kibana-可视化">📊 第四步：学习 Kibana 可视化</h2>
+<p>Kibana 是 Elasticsearch 的可视化界面，主要功能包括：</p>
+<ul>
+<li>数据可视化（创建图表、仪表盘）</li>
+<li>Dev Tools（发送 API 请求）</li>
+<li>Discover（浏览数据）</li>
+<li>管理索引模式（Index Pattern）</li>
+</ul>
+<h3 id="第一次使用建议">第一次使用建议：</h3>
+<ol>
+<li>在 Kibana 中创建 Index Pattern，如 <code>my_index*</code></li>
+<li>使用 Discover 浏览你插入的数据</li>
+<li>尝试创建一个可视化图表，如柱状图或折线图</li>
+</ol>
+<hr>
+<h2 id="第五步进阶建议">📚 第五步：进阶建议</h2>
+<p>等你掌握了基本操作后，建议继续学习以下内容：</p>
+<ul>
+<li><strong>布尔查询、过滤器查询</strong></li>
+<li><strong>聚合分析（Aggregations）</strong></li>
+<li><strong>全文检索 vs 精确匹配（<code>text</code> vs <code>keyword</code>）</strong></li>
+<li><strong>分析器（Analyzer）和分词（Tokenizer）</strong></li>
+<li><strong>索引生命周期管理（ILM）</strong></li>
+<li><strong>使用 Logstash/Beats 输入数据</strong></li>
+</ul>
+<hr>
+<h2 id="示例练习项目建议动手">🗂 示例练习项目（建议动手）</h2>
+<ul>
+<li>创建一个包含“用户简历信息”的索引，字段如 <code>name</code>、<code>age</code>、<code>skills</code>、<code>experience_years</code>。</li>
+<li>插入几条文档数据。</li>
+<li>用 match 查询技能为“Python”的用户。</li>
+<li>创建一个柱状图展示技能分布。</li>
+</ul>
+<hr>
+<p>要查询 <code>lili_goods</code> 索引查询 <code>lili_goods</code> 索引的数据，你可以通过 Kibana 的 <strong>Dev Tools</strong> 或直接使用 Elasticsearch 的 API。下面是几种常见的查询方式。</p>
+<h3 id="1-查询所有文档">1. <strong>查询所有文档</strong></h3>
+<p>如果你想查询 <code>lili_goods</code> 索引中的所有文档，可以使用如下的简单查询：</p>
+<pre><code class="language-bash">GET /lili_goods/_search
+</code></pre>
+<p>这会返回 <code>lili_goods</code> 索引中的所有文档，默认只返回前 10 条数据。</p>
+<h3 id="2-查询特定字段">2. <strong>查询特定字段</strong></h3>
+<p>如果你只想查询某个字段，或者用特定的关键词来查找数据，例如查找商品名称包含某个关键词的文档：</p>
+<pre><code class="language-bash">GET /lili_goods/_search
+{
+  &quot;query&quot;: {
+    &quot;match&quot;: {
+      &quot;product_name&quot;: &quot;some_keyword&quot;
+    }
+  }
+}
+</code></pre>
+<p>这里 <code>product_name</code> 是假设的字段名，<code>some_keyword</code> 是你要匹配的关键词。你可以根据实际的字段名和关键词进行修改。</p>
+<h3 id="3-分页查询获取更多文档">3. <strong>分页查询（获取更多文档）</strong></h3>
+<p>如果 <code>lili_goods</code> 索引有很多文档，默认返回 10 条，你可以使用 <code>size</code> 和 <code>from</code> 来控制分页查询。例如，获取第 2 页的 10 条记录：</p>
+<pre><code class="language-bash">GET /lili_goods/_search
+{
+  &quot;size&quot;: 10,
+  &quot;from&quot;: 10
+}
+</code></pre>
+<p>这会跳过前 10 条记录，返回第 11 到第 20 条记录。</p>
+<h3 id="4-查询特定条件的文档例如价格范围">4. <strong>查询特定条件的文档（例如价格范围）</strong></h3>
+<p>假设你想根据商品价格查询，以下是一个查询示例，查找价格在 50 到 100 之间的商品：</p>
+<pre><code class="language-bash">GET /lili_goods/_search
+{
+  &quot;query&quot;: {
+    &quot;range&quot;: {
+      &quot;price&quot;: {
+        &quot;gte&quot;: 50,
+        &quot;lte&quot;: 100
+      }
+    }
+  }
+}
+</code></pre>
+<p>这里 <code>price</code> 是字段名，<code>gte</code> 和 <code>lte</code> 表示价格的范围。</p>
+<h3 id="5-查询所有文档并返回特定字段">5. <strong>查询所有文档并返回特定字段</strong></h3>
+<p>如果你只关心某些字段，而不需要返回整个文档，可以使用 <code>_source</code> 来指定返回的字段：</p>
+<pre><code class="language-bash">GET /lili_goods/_search
+{
+  &quot;_source&quot;: [&quot;product_name&quot;, &quot;price&quot;, &quot;stock&quot;],
+  &quot;query&quot;: {
+    &quot;match_all&quot;: {}
+  }
+}
+</code></pre>
+<p>这会返回所有文档，但只包含 <code>product_name</code>、<code>price</code> 和 <code>stock</code> 字段。</p>
+<h3 id="6-查看索引的映射mapping">6. <strong>查看索引的映射（Mapping）</strong></h3>
+<p>如果你不知道 <code>lili_goods</code> 索引的字段结构，可以先查看它的映射，了解字段类型和配置：</p>
+<pre><code class="language-bash">GET /lili_goods/_mapping
+</code></pre>
+<p>这会返回索引的映射信息，告诉你各字段的数据类型及是否支持搜索。</p>
+<hr>
+<h3 id="小结">小结</h3>
+<p>通过这些查询，你可以灵活地查询 <code>lili_goods</code> 索引中的数据。如果你需要根据特定条件过滤、分页或指定字段等，使用 Elasticsearch 强大的查询语法进行操作。</p>
+<p>你可以先试试这些查询，如果有其他问题或更复杂的查询需求，随时告诉我！</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[数据脱敏]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/shu-ju-tuo-min/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/shu-ju-tuo-min/">
+        </link>
+        <updated>2025-05-19T02:06:49.000Z</updated>
+        <content type="html"><![CDATA[<h1 id="数据脱敏的这6种方案真香"><a href="https://www.cnblogs.com/12lisu/p/18883200" title="发布于 2025-05-19 09:23">数据脱敏的这6种方案，真香！</a></h1>
+<h2 id="前言">前言</h2>
+<p>某次新来的同事，在开发环境执行了这样的代码：</p>
+<pre><code class="language-java">// 反例：直接将生产数据同步到测试环境  
+public void syncUserToTest(User user) {  
+    testDB.insert(user); // 包含手机号、身份证等敏感字段  
+}
+</code></pre>
+<p>直接将生产的数据，比如：手机号、身份证等敏感字段，同步到了测试环境。</p>
+<p>结果1天后，受到了公司领导的批评。</p>
+<p>这个案例揭示了数据脱敏的极端重要性。</p>
+<p>这篇文章给大家分享6种常用的数据脱敏方案，希望对你会有所帮助。</p>
+<h2 id="方案1字符串替换青铜级">方案1：字符串替换（青铜级）</h2>
+<p><strong>技术原理</strong>：通过正则表达式对敏感数据进行部分字符替换</p>
+<p><strong>典型代码实现</strong>：</p>
+<pre><code class="language-java">public class StringMasker {  
+    // 手机号脱敏：13812345678 → 138****5678  
+    public static String maskMobile(String mobile) {  
+        return mobile.replaceAll(&quot;(\\d{3})\\d{4}(\\d{4})&quot;, &quot;$1****$2&quot;);  
+    }  
+
+    // 身份证脱敏：110101199003077777 → 1101********7777  
+    public static String maskIdCard(String idCard) {  
+        if (idCard.length() == 18) {  
+            return idCard.replaceAll(&quot;(\\d{4})\\d{10}(\\w{4})&quot;, &quot;$1****$2&quot;);  
+        }  
+        return idCard; // 处理15位旧身份证  
+    }  
+}
+</code></pre>
+<p>使用正则表达式将关键字字段替换成了*</p>
+<p><strong>适用场景对比</strong>：</p>
+<figure data-type="image" tabindex="1"><img src="https://files.mdnice.com/user/5303/eaf2551d-6045-4dc5-aeb7-3a4a04c642b2.png" alt="" loading="lazy"></figure>
+<p><strong>优缺点分析</strong>：</p>
+<ul>
+<li>✅ 优点：实现简单、性能高（时间复杂度O(n)）</li>
+<li>❌ 缺点：
+<ul>
+<li>无法恢复原始数据</li>
+<li>正则表达式需考虑多国数据格式差异</li>
+<li>存在模式被破解风险（如固定位置替换）</li>
+</ul>
+</li>
+</ul>
+<h2 id="方案2加密算法白银级">方案2：加密算法（白银级）</h2>
+<p><strong>加密算法选型</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>算法类型</th>
+<th>代表算法</th>
+<th>特点</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>对称加密</td>
+<td>AES</td>
+<td>加解密快，密钥管理复杂</td>
+<td>支付信息存储</td>
+</tr>
+<tr>
+<td>非对称加密</td>
+<td>RSA</td>
+<td>速度慢，安全性高</td>
+<td>密钥交换</td>
+</tr>
+<tr>
+<td>国密算法</td>
+<td>SM4</td>
+<td>符合国家标准</td>
+<td>政府/金融系统</td>
+</tr>
+</tbody>
+</table>
+<p><strong>完整实现示例</strong>：</p>
+<pre><code class="language-java">public class AESEncryptor {  
+    private static final String ALGORITHM = &quot;AES/GCM/NoPadding&quot;;  
+    private static final int TAG_LENGTH = 128; // 认证标签长度  
+
+    public static String encrypt(String plaintext, SecretKey key) {  
+        byte[] iv = new byte[12]; // GCM推荐12字节IV  
+        SecureRandom random = new SecureRandom();  
+        random.nextBytes(iv);  
+
+        Cipher cipher = Cipher.getInstance(ALGORITHM);  
+        cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH, iv));  
+
+        byte[] ciphertext = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));  
+        return Base64.getEncoder().encodeToString(iv) + &quot;:&quot; +  
+               Base64.getEncoder().encodeToString(ciphertext);  
+    }  
+
+    // 解密方法类似...  
+}
+</code></pre>
+<p><strong>密钥管理方案对比</strong>：</p>
+<figure data-type="image" tabindex="2"><img src="https://files.mdnice.com/user/5303/b907b557-bbf6-4406-9d89-3ba9e1c93a0f.png" alt="" loading="lazy"></figure>
+<h2 id="方案3数据遮蔽黄金级">方案3：数据遮蔽（黄金级）</h2>
+<p><strong>数据库层实现数据遮蔽</strong>：</p>
+<pre><code class="language-sql">-- 创建脱敏视图  
+CREATE VIEW masked_customers AS  
+SELECT  
+    id,  
+    CONCAT(SUBSTR(name,1,1), '***') AS name,  
+    CONCAT(SUBSTR(mobile,1,3), '****', SUBSTR(mobile,8,4)) AS mobile  
+FROM customers;  
+
+-- 使用列级权限控制  
+GRANT SELECT (id, name, mobile) ON masked_customers TO test_user;
+</code></pre>
+<p>创建数据脱敏视图，在视图中将关键字段做遮蔽。</p>
+<p>然后在后面需要用到这些字段的代码，需要统一从视图中查询数据。</p>
+<p><strong>代理层实现（ShardingSphere示例）</strong>：</p>
+<pre><code class="language-yml">rules:  
+- !MASK  
+  tables:  
+    user:  
+      columns:  
+        phone:  
+          maskAlgorithm: phone_mask  
+  maskAlgorithms:  
+    phone_mask:  
+      type: MD5  
+      props:  
+        salt: abcdefg123456
+</code></pre>
+<p><strong>性能影响测试数据</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>数据量</th>
+<th>原始查询(ms)</th>
+<th>遮蔽查询(ms)</th>
+<th>性能损耗</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10万</td>
+<td>120</td>
+<td>145</td>
+<td>20.8%</td>
+</tr>
+<tr>
+<td>100万</td>
+<td>980</td>
+<td>1150</td>
+<td>17.3%</td>
+</tr>
+<tr>
+<td>1000万</td>
+<td>10500</td>
+<td>12200</td>
+<td>16.2%</td>
+</tr>
+</tbody>
+</table>
+<h2 id="方案4数据替换铂金级">方案4：数据替换（铂金级）</h2>
+<p>将原始数据和脱敏的数据保存到cache中，方便后面快速的做转换。</p>
+<p><strong>映射表设计</strong>：</p>
+<pre><code class="language-java">// 使用Guava Cache实现LRU缓存  
+LoadingCache&lt;String, String&gt; dataMapping = CacheBuilder.newBuilder()  
+    .maximumSize(100000)  
+    .expireAfterAccess(30, TimeUnit.MINUTES)  
+    .build(new CacheLoader&lt;String, String&gt;() {  
+        public String load(String key) {  
+            return UUID.randomUUID().toString().replace(&quot;-&quot;, &quot;&quot;);  
+        }  
+    });  
+
+public String replaceData(String original) {  
+    return dataMapping.get(original);  
+}
+</code></pre>
+<p><strong>替换流程</strong>：</p>
+<figure data-type="image" tabindex="3"><img src="https://files.mdnice.com/user/5303/f7553936-87d1-47d8-ac6c-b7e0c46af8de.png" alt="" loading="lazy"></figure>
+<h2 id="方案5动态脱敏钻石级">方案5：动态脱敏（钻石级）</h2>
+<p><strong>应用层实现（Spring AOP示例）</strong>：</p>
+<pre><code class="language-java">@Aspect  
+@Component  
+public class DataMaskAspect {  
+
+    @Around(&quot;@annotation(requiresMasking)&quot;)  
+    public Object maskData(ProceedingJoinPoint joinPoint, RequiresMasking requiresMasking) throws Throwable {  
+        Object result = joinPoint.proceed();  
+        return mask(result, requiresMasking.type());  
+    }  
+
+    private Object mask(Object data, MaskType type) {  
+        if (data instanceof User) {  
+            User user = (User) data;  
+            switch(type) {  
+                case MOBILE:  
+                    user.setMobile(MaskUtil.maskMobile(user.getMobile()));  
+                    break;  
+                case ID_CARD:  
+                    user.setIdCard(MaskUtil.maskIdCard(user.getIdCard()));  
+                    break;  
+            }  
+        }  
+        return data;  
+    }  
+}
+</code></pre>
+<p>在需要做数据脱敏的字段上技术RequiresMasking注解，然后在Spring的AOP拦截器中，通过工具类动态实现数据的脱敏。</p>
+<p><strong>数据库代理层架构</strong>：</p>
+<figure data-type="image" tabindex="4"><img src="https://files.mdnice.com/user/5303/2ae40c60-167d-44a3-a7f0-f5478f275dd4.png" alt="" loading="lazy"></figure>
+<h2 id="方案6k匿名化王者级">方案6：K匿名化（王者级）</h2>
+<h3 id="1-通俗原理解释">1. 通俗原理解释</h3>
+<p>假设医院发布就诊数据：</p>
+<table>
+<thead>
+<tr>
+<th>年龄</th>
+<th>性别</th>
+<th>疾病</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>25</td>
+<td>男</td>
+<td>感冒</td>
+</tr>
+<tr>
+<td>25</td>
+<td>男</td>
+<td>发烧</td>
+</tr>
+<tr>
+<td>25</td>
+<td>男</td>
+<td>骨折</td>
+</tr>
+</tbody>
+</table>
+<p>当K=3时，攻击者无法确定具体某人的疾病，因为3人都具有相同特征（25岁男性）。</p>
+<h3 id="2-实现步骤">2. 实现步骤</h3>
+<figure data-type="image" tabindex="5"><img src="https://files.mdnice.com/user/5303/5a643612-65f3-44e2-82ce-ff9f754e0173.png" alt="" loading="lazy"></figure>
+<p><strong>医疗数据泛化示例</strong>：</p>
+<pre><code class="language-java">public class KAnonymity {  
+
+    // 年龄泛化：精确值→范围  
+    public static String generalizeAge(int age) {  
+        int range = 10; // K=10  
+        int lower = (age / range) * range;  
+        int upper = lower + range - 1;  
+        return lower + &quot;-&quot; + upper;  
+    }  
+}
+</code></pre>
+<p>假设range是K值，等于10。</p>
+<p>generalizeAge方法中，通过一定的算法，将年龄的精确值，泛化成一个区间范围。</p>
+<p>输入年龄28，返回20-29。</p>
+<p><strong>K值选择原则</strong>：</p>
+<figure data-type="image" tabindex="6"><img src="https://files.mdnice.com/user/5303/24272300-2940-4f80-8897-4e75c2a70488.png" alt="" loading="lazy"></figure>
+<h2 id="总结">总结</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>安全性</th>
+<th>性能</th>
+<th>可逆性</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>字符串替换</td>
+<td>★★</td>
+<td>★★★★</td>
+<td>不可逆</td>
+<td>日志/展示</td>
+</tr>
+<tr>
+<td>加密算法</td>
+<td>★★★★</td>
+<td>★★</td>
+<td>可逆</td>
+<td>支付信息存储</td>
+</tr>
+<tr>
+<td>数据遮蔽</td>
+<td>★★★</td>
+<td>★★★</td>
+<td>部分可逆</td>
+<td>数据库查询</td>
+</tr>
+<tr>
+<td>数据替换</td>
+<td>★★★★</td>
+<td>★★</td>
+<td>可逆</td>
+<td>测试数据生成</td>
+</tr>
+<tr>
+<td>动态脱敏</td>
+<td>★★★★</td>
+<td>★★★</td>
+<td>动态可控</td>
+<td>生产环境查询</td>
+</tr>
+<tr>
+<td>K匿名化</td>
+<td>★★★★★</td>
+<td>★</td>
+<td>不可逆</td>
+<td>医疗/位置数据</td>
+</tr>
+</tbody>
+</table>
+<p>下面是某电商平台各方案的使用占比：<br>
+<img src="https://files.mdnice.com/user/5303/bf51a958-0455-4fdb-9119-f2e1ce6c8d57.png" alt="" loading="lazy"></p>
+<p>** 3个核心建议**：</p>
+<ol>
+<li><strong>数据分类分级</strong>：不同级别数据采用不同脱敏策略</li>
+<li><strong>定期审计</strong>：使用自动化工具扫描敏感数据泄露</li>
+<li><strong>最小化原则</strong>：能不收集的敏感数据坚决不收集</li>
+</ol>
+<p><strong>灵魂拷问</strong>：<br>
+当黑客攻破你的数据库时，里面的数据是否像诺基亚功能机一样&quot;防摔&quot;？</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[关键字读书法 这套方法来读《打造超人大脑》这本书]]></title>
+        <id>https://yuzhupeng.top/myblogs/post/guan-jian-zi-du-shu-fa-zhe-tao-fang-fa-lai-du-lesslessda-zao-chao-ren-da-nao-greatergreater-zhe-ben-shu/</id>
+        <link href="https://yuzhupeng.top/myblogs/post/guan-jian-zi-du-shu-fa-zhe-tao-fang-fa-lai-du-lesslessda-zao-chao-ren-da-nao-greatergreater-zhe-ben-shu/">
+        </link>
+        <updated>2025-05-16T09:37:41.000Z</updated>
+        <content type="html"><![CDATA[<p>关键字读书法 这套方法来读《打造超人大脑》这本书。</p>
+<hr>
+<h2 id="step-1找出你最想问这本书的一个问题">Step 1：找出你最想问这本书的一个问题</h2>
+<ul>
+<li><strong>书名</strong>：《打造超人大脑》</li>
+<li><strong>主要问题</strong>：如何通过科学的方法提升大脑的记忆力和思考能力？</li>
+<li><strong>动机</strong>：我希望能找到实用且有效的技巧，帮助自己在学习和工作中更高效地利用大脑，提升记忆和创造力。</li>
+</ul>
+<hr>
+<h2 id="step-2限时-30-分钟快速摘出-16-个关键字">Step 2：限时 30 分钟快速摘出 16 个关键字</h2>
+<p>假设我快速浏览了这本书，摘录了以下16个关键字：</p>
+<table>
+<thead>
+<tr>
+<th>关键字1</th>
+<th>关键字2</th>
+<th>关键字3</th>
+<th>关键字4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>记忆宫殿</td>
+<td>注意力训练</td>
+<td>信息编码</td>
+<td>大脑可塑性</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>关键字5</th>
+<th>关键字6</th>
+<th>关键字7</th>
+<th>关键字8</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>速读技巧</td>
+<td>复述法</td>
+<td>联想记忆</td>
+<td>习惯养成</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>关键字9</th>
+<th>关键字10</th>
+<th>关键字11</th>
+<th>关键字12</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>多感官学习</td>
+<td>睡眠质量</td>
+<td>大脑休息</td>
+<td>情绪管理</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>关键字13</th>
+<th>关键字14</th>
+<th>关键字15</th>
+<th>关键字16</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>脑波调节</td>
+<td>创意思维</td>
+<td>目标设定</td>
+<td>持续练习</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="step-3针对这16个关键字整理出3-5个重点">Step 3：针对这16个关键字，整理出3-5个重点</h2>
+<ol>
+<li>
+<p><strong>记忆与信息处理技巧</strong><br>
+通过记忆宫殿、联想记忆、信息编码和复述法，提升大脑对信息的存储和提取能力。</p>
+</li>
+<li>
+<p><strong>注意力与习惯培养</strong><br>
+训练注意力，养成良好的学习习惯，利用速读技巧提高信息获取效率。</p>
+</li>
+<li>
+<p><strong>大脑健康与休息</strong><br>
+保持良好的睡眠质量和大脑休息，管理情绪，促进大脑可塑性和脑波调节。</p>
+</li>
+<li>
+<p><strong>多感官与创意思维</strong><br>
+利用多感官学习激发创意思维，结合目标设定和持续练习，推动大脑能力的全面提升。</p>
+</li>
+</ol>
+<hr>
+<h2 id="step-4复述心得">Step 4：复述心得</h2>
+<p>我会这样向朋友复述这本书的核心内容：</p>
+<blockquote>
+<p>《打造超人大脑》这本书教我们如何科学地提升大脑的记忆力和思考能力。书中介绍了很多实用技巧，比如用记忆宫殿和联想记忆来帮助记忆，用复述法加深理解。它还强调注意力训练和养成良好习惯的重要性，比如速读和专注练习。除此之外，书里还提醒我们要保证充足的睡眠和大脑休息，管理好情绪，这样大脑才能保持高效的可塑性。最后，多感官学习和创意思维的培养也很关键，结合明确的目标和持续练习，能让我们的大脑变得更强大。</p>
+</blockquote>
+<hr>
+<p>好的！下面我将基于《打造超人大脑》这本书的主题，详细介绍之前提到的16个关键字，帮助你更深入理解每个关键字背后的含义和应用。</p>
+<hr>
+<h1 id="打造超人大脑16个关键字详细介绍">《打造超人大脑》16个关键字详细介绍</h1>
+<table>
+<thead>
+<tr>
+<th>关键字</th>
+<th>详细介绍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>记忆宫殿</strong></td>
+<td>一种古老且有效的记忆技巧，通过将信息与熟悉的空间场景（如房间、建筑）联系起来，增强记忆的联想和提取。</td>
+</tr>
+<tr>
+<td><strong>注意力训练</strong></td>
+<td>通过冥想、专注练习等方法提升大脑的注意力集中能力，减少分心，提高学习和工作效率。</td>
+</tr>
+<tr>
+<td><strong>信息编码</strong></td>
+<td>将新信息转化为大脑更容易存储和理解的形式，比如用图像、故事或符号来编码抽象信息。</td>
+</tr>
+<tr>
+<td><strong>大脑可塑性</strong></td>
+<td>大脑适应和重组自身结构与功能的能力，强调通过训练和环境刺激可以持续改善认知能力。</td>
+</tr>
+<tr>
+<td><strong>速读技巧</strong></td>
+<td>通过训练眼睛和大脑快速捕捉和理解文字信息，提高阅读速度和理解力。</td>
+</tr>
+<tr>
+<td><strong>复述法</strong></td>
+<td>通过用自己的话复述所学内容，加深理解和记忆，促进知识内化。</td>
+</tr>
+<tr>
+<td><strong>联想记忆</strong></td>
+<td>利用已有知识和经验，将新信息与熟悉的事物联系起来，形成强烈的记忆钩子。</td>
+</tr>
+<tr>
+<td><strong>习惯养成</strong></td>
+<td>通过重复和环境设计，建立有利于大脑发展的良好习惯，如定时学习、规律作息。</td>
+</tr>
+<tr>
+<td><strong>多感官学习</strong></td>
+<td>利用视觉、听觉、触觉等多种感官同时参与学习，增强信息的多维度编码和记忆。</td>
+</tr>
+<tr>
+<td><strong>睡眠质量</strong></td>
+<td>睡眠对大脑记忆巩固和恢复至关重要，保证充足且高质量的睡眠能显著提升认知功能。</td>
+</tr>
+<tr>
+<td><strong>大脑休息</strong></td>
+<td>适当的休息和放松帮助大脑恢复能量，避免过度疲劳，提升后续学习和工作效率。</td>
+</tr>
+<tr>
+<td><strong>情绪管理</strong></td>
+<td>控制和调节情绪，减少压力和焦虑对大脑功能的负面影响，促进积极的认知状态。</td>
+</tr>
+<tr>
+<td><strong>脑波调节</strong></td>
+<td>通过冥想、音乐或特定训练调整脑电波频率，促进放松、专注或创造力的状态。</td>
+</tr>
+<tr>
+<td><strong>创意思维</strong></td>
+<td>通过发散思维、跨界联想等方法激发创新能力，提升解决问题的多样性和深度。</td>
+</tr>
+<tr>
+<td><strong>目标设定</strong></td>
+<td>明确具体且可衡量的目标，激发动力和方向感，帮助大脑集中资源完成任务。</td>
+</tr>
+<tr>
+<td><strong>持续练习</strong></td>
+<td>反复训练和实践，巩固技能和知识，利用“刻意练习”提升大脑的专业能力和效率。</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="关键字之间的联系与应用">关键字之间的联系与应用</h1>
+<p>这些关键字其实是围绕着<strong>如何提升大脑的记忆力、专注力、学习效率和创造力</strong>展开的。它们可以分为几个核心模块：</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>关键字</th>
+<th>作用说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>记忆与学习技巧</strong></td>
+<td>记忆宫殿、信息编码、复述法、联想记忆、多感官学习</td>
+<td>提升信息的存储和提取能力</td>
+</tr>
+<tr>
+<td><strong>注意力与习惯</strong></td>
+<td>注意力训练、速读技巧、习惯养成、持续练习</td>
+<td>增强专注力和学习效率</td>
+</tr>
+<tr>
+<td><strong>大脑健康管理</strong></td>
+<td>睡眠质量、大脑休息、情绪管理、脑波调节</td>
+<td>保障大脑功能的最佳状态</td>
+</tr>
+<tr>
+<td><strong>思维与动力</strong></td>
+<td>创意思维、目标设定</td>
+<td>激发创新能力和行动动力</td>
+</tr>
+<tr>
+<td><strong>大脑适应性</strong></td>
+<td>大脑可塑性</td>
+<td>说明大脑通过训练和环境刺激不断进化的能力</td>
+</tr>
+</tbody>
+</table>
+<hr>
+]]></content>
+    </entry>
+</feed>
