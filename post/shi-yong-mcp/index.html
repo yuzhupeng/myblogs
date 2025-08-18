@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>mcp 配置 结合大模型，AI操控 浏览器，文件系统 ，结合官方文档 | fishyue</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://yuzhupeng.top/myblogs//favicon.ico?v=1755503043926">
+<link rel="stylesheet" href="https://yuzhupeng.top/myblogs//styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="{
+&quot;mcpServers&quot;: {
+&quot;context7-mcp&quot;: {
+&quot;isActive&quot;: true,
+&quot;command&quot;: &quot;cmd&quot;..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://yuzhupeng.top/myblogs/">
+        <img src="https://yuzhupeng.top/myblogs//images/avatar.png?v=1755503043926" class="site-logo">
+        <h1 class="site-title">fishyue</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/myblogs" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/myblogs/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/myblogs/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/myblogs/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/yuzhupeng" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      由奢入俭难，由俭入奢易
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/yuzhupeng" target="_blank">Fishyue</a> | <a class="rss" href="https://yuzhupeng.top/myblogs//atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">mcp 配置 结合大模型，AI操控 浏览器，文件系统 ，结合官方文档</h2>
+            <div class="post-date">2025-05-09</div>
+            
+            <div class="post-content" v-pre>
+              <p>{<br>
+&quot;mcpServers&quot;: {<br>
+&quot;context7-mcp&quot;: {<br>
+&quot;isActive&quot;: true,<br>
+&quot;command&quot;: &quot;cmd&quot;,<br>
+&quot;args&quot;: [<br>
+&quot;/c&quot;,<br>
+&quot;npx&quot;,<br>
+&quot;-y&quot;,<br>
+&quot;@smithery/cli@latest&quot;,<br>
+&quot;run&quot;,<br>
+&quot;@upstash/context7-mcp&quot;,<br>
+&quot;--key&quot;,<br>
+&quot;ecdff2bd-17e8-4d9d-81d1-fc2e388d8e3b&quot;<br>
+],<br>
+&quot;name&quot;: &quot;context7-mcp&quot;<br>
+},<br>
+&quot;playwright&quot;: {<br>
+&quot;isActive&quot;: true,<br>
+&quot;command&quot;: &quot;cmd&quot;,<br>
+&quot;args&quot;: [<br>
+&quot;/c&quot;,<br>
+&quot;npx&quot;,<br>
+&quot;-y&quot;,<br>
+&quot;@executeautomation/playwright-mcp-server&quot;<br>
+],<br>
+&quot;shell&quot;: true,<br>
+&quot;name&quot;: &quot;playwright&quot;<br>
+},<br>
+&quot;filesystem&quot;: {<br>
+&quot;isActive&quot;: true,<br>
+&quot;command&quot;: &quot;cmd&quot;,<br>
+&quot;args&quot;: [<br>
+&quot;/c&quot;,<br>
+&quot;npx&quot;,<br>
+&quot;-y&quot;,<br>
+&quot;@modelcontextprotocol/server-filesystem&quot;,<br>
+&quot;E:\Projcet\otherproject\mromroforwardgit\mroforward\mroforward&quot;<br>
+],<br>
+&quot;shell&quot;: true,<br>
+&quot;name&quot;: &quot;filesystem&quot;<br>
+},<br>
+&quot;server-sequential-thinking&quot;: {<br>
+&quot;isActive&quot;: true,<br>
+&quot;command&quot;: &quot;cmd&quot;,<br>
+&quot;args&quot;: [<br>
+&quot;/c&quot;,<br>
+&quot;npx&quot;,<br>
+&quot;-y&quot;,<br>
+&quot;@smithery/cli@latest&quot;,<br>
+&quot;run&quot;,<br>
+&quot;@smithery-ai/server-sequential-thinking&quot;,<br>
+&quot;--key&quot;,<br>
+&quot;ecdff2bd-17e8-4d9d-81d1-fc2e388d8e3b&quot;<br>
+],<br>
+&quot;shell&quot;: true,<br>
+&quot;name&quot;: &quot;server-sequential-thinking&quot;<br>
+}<br>
+}<br>
+}</p>
+<p>npm install -g @executeautomation/playwright-mcp-server</p>
+<p>npx -y @smithery/cli install @executeautomation/playwright-mcp-server --client cursor</p>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://yuzhupeng.top/myblogs/post/shu-ju-zhuan-hua-wei-er-jin-zhi-ji-ji-suan-ji-nei-bu-chu-li-de-yong-hu-duan-fu-wu-qi-wan-zheng-guo-cheng/">
+                  <h3 class="post-title">
+                    数据转化为二进制及计算机内部处理的  用户端--服务器 完整过程
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

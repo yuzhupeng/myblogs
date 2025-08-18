@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>[Augment] 使用技巧 - ACE (Augment Context Engine) 触发机制和提示词策略分析和高级技巧（仅供参考） | fishyue</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://yuzhupeng.top/myblogs//favicon.ico?v=1755503043926">
+<link rel="stylesheet" href="https://yuzhupeng.top/myblogs//styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="[Augment] 使用技巧 - ACE (Augment Context Engine) 触发机制和提示词策略分析和高级技巧（仅供参考）
+
+[](javascript:)
+
+
+
+[](javascript:)
+
+前言
+最近没去玩 Curs..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://yuzhupeng.top/myblogs/">
+        <img src="https://yuzhupeng.top/myblogs//images/avatar.png?v=1755503043926" class="site-logo">
+        <h1 class="site-title">fishyue</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/myblogs" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/myblogs/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/myblogs/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/myblogs/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/yuzhupeng" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      由奢入俭难，由俭入奢易
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/yuzhupeng" target="_blank">Fishyue</a> | <a class="rss" href="https://yuzhupeng.top/myblogs//atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">[Augment] 使用技巧 - ACE (Augment Context Engine) 触发机制和提示词策略分析和高级技巧（仅供参考）</h2>
+            <div class="post-date">2025-06-25</div>
+            
+            <div class="post-content" v-pre>
+              <h1 id="augment-使用技巧-ace-augment-context-engine-触发机制和提示词策略分析和高级技巧仅供参考">[Augment] 使用技巧 - ACE (Augment Context Engine) 触发机制和提示词策略分析和高级技巧（仅供参考）</h1>
+<ul>
+<li>[](javascript:)</li>
+</ul>
+<p></p>
+<ul>
+<li>[](javascript:)</li>
+</ul>
+<h2 id="前言">前言</h2>
+<p>最近没去玩 Cursor ，脚本也好久没更新，提示词（ 4.8 版本）也没怎么更新，主要是对 Augment 感兴趣，在 Idea 上不要太舒服了，所以对这个 ACE (Augment Context Engine)，产生了兴趣，想去深入了解学习，也为了更好写代码（<s>bug</s>)当牛马，下面大部分内容是自写+少量 AI 润色（代码块、流程图、表述不清楚的地方等），顺便拿出来水一贴。</p>
+<p>下面是我对 <code>intellij-augment-0.221.1.jar</code> 包解析出来的原理解答和实际工作经验中探索出来的，所以有耐心的话慢慢看，没耐心可以跳到最下面（高级技巧、高效触发 ACE ）的部分，稍微学一下，注意怎么高效使用即可。</p>
+<h2 id="ace-augment-context-engine-触发机制">ACE (Augment Context Engine) 触发机制</h2>
+<h3 id="1-ace-触发条件解析">1 、ACE 触发条件解析</h3>
+<h4 id="11-ace-自动触发">1.1 、ACE 自动触发</h4>
+<p>自动触发场景：</p>
+<ul>
+<li>1.Agent 模式激活：当 mode 设置为&quot;AGENT&quot;时</li>
+<li>2.文件上下文存在：当前有打开的文件或选中代码</li>
+<li>3.用户指定文件：通过 @文件名引用特定文件</li>
+<li>4.复杂查询检测：AI 检测到需要代码库级别理解的查询</li>
+</ul>
+<pre><code class="language-java">public class ChatRequest {
+    public String mode;                     // &quot;AGENT&quot; 模式自动触发 ACE
+    public BlobsPayload blobs;              // 有文件上下文时触发
+    public List&lt;String&gt; userGuidedBlobs;    // 用户指定文件时强制触发
+    public String contextCodeExchangeRequestId; // 上下文代码交换时触发
+}
+</code></pre>
+<h4 id="12-手动触发">1.2 、手动触发</h4>
+<pre><code class="language-java">public class AgentCodebaseRetrievalRequest {
+    public String informationRequest;       // 信息请求描述
+    public BlobsPayload blobs;             // 相关文件 blob
+    public List&lt;Exchange&gt; chatHistory;      // 聊天历史上下文
+    public Integer maxOutputLength;        // 最大输出长度
+}
+</code></pre>
+<h3 id="2-augment-的意图识别系统">2 、Augment 的意图识别系统</h3>
+<h4 id="21-查询类型分类">2.1 、查询类型分类</h4>
+<p>基于分析，ACE 能识别以下查询类型：</p>
+<p><strong>代码理解类查询：</strong></p>
+<ul>
+<li>&quot;这个函数是做什么的？&quot;</li>
+<li>&quot;解释这段代码的逻辑&quot;</li>
+<li>&quot;这个类的作用是什么？&quot;</li>
+</ul>
+<p><strong>代码搜索类查询：</strong></p>
+<ul>
+<li>&quot;找到所有使用 Redis 的地方&quot;</li>
+<li>&quot;哪里定义了 User 类？&quot;</li>
+<li>&quot;搜索所有的 API 接口&quot;</li>
+</ul>
+<p><strong>架构分析类查询：</strong></p>
+<ul>
+<li>&quot;这个项目的整体架构是什么？&quot;</li>
+<li>&quot;模块之间的依赖关系&quot;</li>
+<li>&quot;数据流是怎样的？&quot;</li>
+</ul>
+<p><strong>问题诊断类查询：</strong></p>
+<ul>
+<li>&quot;为什么这里会报错？&quot;</li>
+<li>&quot;这个 bug 可能在哪里？&quot;</li>
+<li>&quot;性能瓶颈在哪里？&quot;</li>
+</ul>
+<p><strong>代码生成类查询：</strong></p>
+<ul>
+<li>&quot;帮我写一个类似的函数&quot;</li>
+<li>&quot;生成这个接口的实现&quot;</li>
+<li>&quot;创建一个新的组件&quot;</li>
+</ul>
+<h4 id="22-上下文权重计算">2.2 上下文权重计算</h4>
+<pre><code class="language-java">// 基于 FeatureDetectionFlags 的分析
+public class ContextWeightCalculator {
+    public double calculateWeight(String query, FileContext context) {
+        double weight = 0.0;
+        
+        // 关键词权重
+        if (containsCodeTerms(query)) weight += 0.3;
+        if (containsArchitectureTerms(query)) weight += 0.4;
+        if (containsDebuggingTerms(query)) weight += 0.5;
+        
+        // 上下文相关性
+        if (hasSelectedCode(context)) weight += 0.2;
+        if (hasMultipleFiles(context)) weight += 0.3;
+        if (hasComplexProject(context)) weight += 0.4;
+        
+        return Math.min(weight, 1.0);
+    }
+}
+</code></pre>
+<h2 id="3-高效触发-ace">3 、高效触发 ACE</h2>
+<h3 id="1-触发-ace-的关键词和短语">1. 触发 ACE 的关键词和短语</h3>
+<h4 id="11-强制触发词汇">1.1 强制触发词汇</h4>
+<p><strong>架构相关：</strong></p>
+<ul>
+<li>&quot;整体架构&quot; / &quot;overall architecture&quot;</li>
+<li>&quot;系统设计&quot; / &quot;system design&quot;</li>
+<li>&quot;模块关系&quot; / &quot;module relationships&quot;</li>
+<li>&quot;依赖图&quot; / &quot;dependency graph&quot;</li>
+</ul>
+<p><strong>代码库级别：</strong></p>
+<ul>
+<li>&quot;在整个项目中&quot; / &quot;across the entire project&quot;</li>
+<li>&quot;所有相关文件&quot; / &quot;all related files&quot;</li>
+<li>&quot;项目范围内&quot; / &quot;project-wide&quot;</li>
+<li>&quot;代码库搜索&quot; / &quot;codebase search&quot;</li>
+</ul>
+<p><strong>深度分析：</strong></p>
+<ul>
+<li>&quot;深入分析&quot; / &quot;deep analysis&quot;</li>
+<li>&quot;详细解释&quot; / &quot;detailed explanation&quot;</li>
+<li>&quot;完整理解&quot; / &quot;comprehensive understanding&quot;</li>
+<li>&quot;全面检查&quot; / &quot;thorough examination&quot;</li>
+</ul>
+<h4 id="12-上下文增强词汇">1.2 上下文增强词汇</h4>
+<p><strong>文件引用：</strong></p>
+<ul>
+<li>&quot;@文件名&quot; - 直接引用特定文件</li>
+<li>&quot;相关文件&quot; / &quot;related files&quot;</li>
+<li>&quot;依赖文件&quot; / &quot;dependent files&quot;</li>
+<li>&quot;调用链&quot; / &quot;call chain&quot;</li>
+</ul>
+<p><strong>范围指定：</strong></p>
+<ul>
+<li>&quot;包括测试文件&quot; / &quot;including test files&quot;</li>
+<li>&quot;配置文件&quot; / &quot;configuration files&quot;</li>
+<li>&quot;所有模块&quot; / &quot;all modules&quot;</li>
+<li>&quot;子项目&quot; / &quot;subprojects&quot;</li>
+</ul>
+<h3 id="2-提示词模板参考">2. 提示词模板（参考）</h3>
+<h4 id="21-代码理解模板">2.1 代码理解模板</h4>
+<pre><code>模板 1：深度代码分析
+&quot;请深入分析[具体代码/文件/功能]的实现原理，包括：
+1. 核心逻辑和算法
+2. 与其他模块的交互
+3. 在整个项目中的作用
+4. 潜在的改进点&quot;
+
+模板 2：架构级别理解
+&quot;从整体架构的角度，解释[功能/模块]是如何工作的：
+- 在系统中的位置
+- 与其他组件的关系
+- 数据流向和处理过程
+- 设计模式和最佳实践&quot;
+</code></pre>
+<h4 id="22-问题诊断模板">2.2 问题诊断模板</h4>
+<p>模板 3：Bug 分析 &quot;帮我分析这个问题：[具体问题描述] 请检查：</p>
+<ul>
+<li>相关的代码文件</li>
+<li>可能的错误原因</li>
+<li>类似的已知问题</li>
+<li>建议的解决方案&quot;</li>
+</ul>
+<p>模板 4：性能分析 &quot;分析[功能/模块]的性能问题：</p>
+<ul>
+<li>识别性能瓶颈</li>
+<li>检查相关的配置</li>
+<li>对比最佳实践</li>
+<li>提供优化建议&quot;</li>
+</ul>
+<h4 id="23-代码生成模板">2.3 代码生成模板</h4>
+<p>模板 5：基于现有代码生成 &quot;基于项目中现有的[类似功能/模式]，帮我生成[新功能]：</p>
+<ul>
+<li>遵循项目的编码规范</li>
+<li>使用相同的设计模式</li>
+<li>保持一致的命名约定</li>
+<li>包含适当的错误处理&quot;</li>
+</ul>
+<p>模板 6：接口实现 &quot;为[接口/抽象类]创建实现，参考项目中的其他实现：</p>
+<ul>
+<li>分析现有实现模式</li>
+<li>遵循项目架构</li>
+<li>包含必要的依赖注入</li>
+<li>添加适当的日志和监控&quot;</li>
+</ul>
+<h2 id="实战示例">实战示例</h2>
+<h3 id="1-触发-ace-的有效查询示例">1. 触发 ACE 的有效查询示例</h3>
+<h4 id="示例-1架构分析查询">示例 1：架构分析查询</h4>
+<pre><code>用户查询：
+&quot;请分析这个 Spring Boot 项目的整体架构，包括：
+1. 各层之间的关系（ Controller 、Service 、Repository ）
+2. 数据流向和处理过程
+3. 配置文件的作用
+4. 与数据库的交互方式&quot;
+
+ACE 响应特征：
+- 会扫描所有相关的 Java 文件
+- 分析 Spring 配置文件
+- 检查数据库配置和实体类
+- 生成架构图和说明
+</code></pre>
+<h4 id="示例-2代码搜索查询">示例 2：代码搜索查询</h4>
+<pre><code>用户查询：
+在整个项目中找到所有使用 Redis 的地方，包括：
+ - 配置文件中的 Redis 设置
+ - 代码中的 Redis 操作
+ - 缓存注解的使用
+ - 相关的工具类&quot;
+
+ACE 响应特征：
+ - 搜索所有 Java 文件中的 Redis 相关代码
+ - 检查配置文件（ application.yml 等）
+ - 分析依赖文件（ pom.xml 等）
+ - 提供完整的使用清单
+</code></pre>
+<h4 id="示例-3问题诊断查询">示例 3：问题诊断查询</h4>
+<pre><code>用户查询：
+&quot;这个接口响应很慢，帮我分析可能的原因：
+@GetMapping('/api/users')
+请检查相关的 Service 、Repository 和数据库查询&quot;
+
+ACE 响应特征：
+ - 分析 Controller 、Service 、Repository 的完整调用链
+ - 检查数据库查询和索引
+ - 分析缓存策略
+ - 提供性能优化建议
+</code></pre>
+<h3 id="2-无效查询的改进建议">2. 无效查询的改进建议</h3>
+<h4 id="无效查询示例">无效查询示例：</h4>
+<pre><code>❌ &quot;这个代码有什么问题？&quot;
+改进为：
+✅ &quot;分析这个 UserService 类的实现，检查是否有性能问题、安全漏洞或违反最佳实践的地方&quot;
+
+❌ &quot;帮我写个函数&quot;
+改进为：
+✅ &quot;基于项目中现有的数据访问模式，帮我为 User 实体创建一个 CRUD 服务类，包括适当的异常处理和事务管理&quot;
+
+❌ &quot;这个项目是做什么的？&quot;
+改进为：
+✅ &quot;通过分析项目结构、配置文件和主要类，解释这个应用的业务功能、技术架构和部署方式&quot;
+</code></pre>
+<hr>
+<h2 id="高级触发技巧-仅供参考">高级触发技巧 （仅供参考）</h2>
+<h3 id="1-利用-agent-模式">1. 利用 Agent 模式</h3>
+<blockquote>
+<p>分析整个项目的安全性问题</p>
+</blockquote>
+<pre><code class="language-java">// 在 ChatRequest 中设置 mode 为&quot;AGENT&quot;
+{
+    &quot;mode&quot;: &quot;AGENT&quot;,
+    &quot;message&quot;: &quot;分析整个项目的安全性问题&quot;,
+    &quot;blobs&quot;: {...},
+    &quot;agent_memories&quot;: &quot;...&quot;
+}
+</code></pre>
+<h3 id="2-使用文件引用">2. 使用文件引用</h3>
+<pre><code>直接引用：
+&quot;@UserController.java 这个控制器的安全性如何？&quot;
+&quot;@application.yml 这个配置有什么问题？&quot;
+
+批量引用：
+&quot;分析 @UserService.java 、 @UserRepository.java 和 @User.java 之间的关系&quot;
+</code></pre>
+<h3 id="3-上下文链式查询">3. 上下文链式查询</h3>
+<pre><code>第一步：建立上下文
+&quot;请分析这个电商项目的订单处理流程&quot;
+
+第二步：深入细节
+&quot;在订单处理流程中，库存管理是如何实现的？&quot;
+
+第三步：问题诊断
+&quot;库存管理中可能存在什么并发问题？&quot;
+</code></pre>
+<h2 id="触发成功率">📊 触发成功率</h2>
+<h3 id="高成功率-90">高成功率（ 90%+）</h3>
+<ul>
+<li>包含&quot;整个项目&quot;、&quot;所有文件&quot;</li>
+<li>使用 @文件名引用</li>
+<li>Agent 模式</li>
+<li>架构分析查询</li>
+</ul>
+<h3 id="中等成功率-60-90">中等成功率（ 60-90%）</h3>
+<ul>
+<li>涉及多个文件的问题</li>
+<li>性能和安全查询</li>
+<li>代码重构建议</li>
+</ul>
+<h3 id="低成功率60">低成功率（&lt;60%）</h3>
+<ul>
+<li>简单语法问题</li>
+<li>单一文件小问题</li>
+<li>基础概念解释</li>
+</ul>
+<h2 id="ace-系统架构图">ACE 系统架构图</h2>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                 Augment Context Engine                      │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+│  │   本地索引系统    │  │  代码库检索系统   │  │  工作空间感知系统 │ │
+│  │ AugmentLocalIndex│  │AgentCodebaseRet │  │WorkspaceFolderI │ │
+│  │ AugmentBlobState │  │rieval System    │  │nfo System       │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
+│  ┌─────────────────┐  ┌─────────────────┐                     │
+│  │    记忆系统      │  │   检查点系统     │                     │
+│  │ MemoriesService  │  │ Checkpoint      │                     │
+│  │                 │  │ System          │                     │
+│  └─────────────────┘  └─────────────────┘                     │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    IntelliJ Platform                       │
+│              FileBasedIndex Infrastructure                  │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+<pre><code>全局记忆 (Global Memory)
+├── 用户偏好记忆 (User Preferences)
+│   ├── 编程风格偏好
+│   ├── 常用模式和习惯
+│   └── 错误修正历史
+├── 项目特定记忆 (Project-Specific Memory)  
+│   ├── 项目架构理解
+│   ├── 业务逻辑映射
+│   └── 团队编程规范
+└── 会话记忆 (Session Memory)
+    ├── 当前对话上下文
+    ├── 临时学习内容
+    └── 实时反馈信息
+</code></pre>
+<p>PS：Augment 的 ACE 会把他建立全部记忆、代码索引全部上传<strong>云端</strong>的！！！所以如果建议的请慎重考虑是否使用~</p>
+<hr>
+<p>好了，这些就是我这些天使用 Augment 的小小技巧了，你已经成功学会如何正确高效的使用 ACE (Augment Context Engine) 这个强大的 <code>工具</code> 了，Cursor 真的要好好学习学习人家 Augment~</p>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://yuzhupeng.top/myblogs/post/elasticsearch-yu-redis-de-qu-bie-yu-shi-yong-chang-jing-fen-xi/">
+                  <h3 class="post-title">
+                    Elasticsearch 与 Redis 的区别与使用场景分析
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

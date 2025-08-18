@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>如何抽象出领域对象/业务对象 | fishyue</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://yuzhupeng.top/myblogs//favicon.ico?v=1755503043926">
+<link rel="stylesheet" href="https://yuzhupeng.top/myblogs//styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="如何抽象出领域对象/业务对象
+目录
+背景和价值
+方案1 针对已经梳理出来业务流程
+方案2： 使用DDD的事件风暴（还没梳理出流程）
+参考资料
+背景和价值
+方案1 针对已经梳理出来业务流程
+假如已经针对各个场景，把业务流程，任务，步骤，规则梳..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://yuzhupeng.top/myblogs/">
+        <img src="https://yuzhupeng.top/myblogs//images/avatar.png?v=1755503043926" class="site-logo">
+        <h1 class="site-title">fishyue</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/myblogs" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/myblogs/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/myblogs/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/myblogs/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/yuzhupeng" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      由奢入俭难，由俭入奢易
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/yuzhupeng" target="_blank">Fishyue</a> | <a class="rss" href="https://yuzhupeng.top/myblogs//atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">如何抽象出领域对象/业务对象</h2>
+            <div class="post-date">2025-05-12</div>
+            
+            <div class="post-content" v-pre>
+              <p>如何抽象出领域对象/业务对象<br>
+目录<br>
+背景和价值<br>
+方案1 针对已经梳理出来业务流程<br>
+方案2： 使用DDD的事件风暴（还没梳理出流程）<br>
+参考资料<br>
+背景和价值<br>
+方案1 针对已经梳理出来业务流程<br>
+假如已经针对各个场景，把业务流程，任务，步骤，规则梳理好。流程的例子如下</p>
+<p><img src="https://yuzhupeng.top/myblogs//post-images/1747043699930.png" alt="" loading="lazy"><br>
+比对各个L3流程下的子流程的业务实体<br>
+• 对比上述共性业务在业务流程中输出的业务实体，判定业务实体的差异性以及是否能<br>
+够抽取共性的业务实体</p>
+<p>方案2： 使用DDD的事件风暴（还没梳理出流程）<br>
+假如一开始一片空白。领域模型是什么叫什么有什么你是完全不知道的。 所以要先梳理业务流程/用户旅程。 在流程的关键节点分析可能产生的事件/状态改变。 对产生的事件命名和排除歧义就是建模的第一步。 先分析出系统应该存在了那些模型。</p>
+<p>然后在对模型细化，分析模型应该有哪些内容。哪些字段 子对象 子值对象。 前期规划的模型不对太大那就再调整么。 没有人能一次一个时间点就设计的完美的。</p>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://yuzhupeng.top/myblogs/post/shi-yong-mcp/">
+                  <h3 class="post-title">
+                    mcp 配置 结合大模型，AI操控 浏览器，文件系统 ，结合官方文档
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

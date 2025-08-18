@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>VO，BO，PO，DO，DTO的区别 | fishyue</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://yuzhupeng.top/myblogs//favicon.ico?v=1755503043926">
+<link rel="stylesheet" href="https://yuzhupeng.top/myblogs//styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="看完图估计大部分人就已经有了一个直观的感受了
+
+面对这个图，让我们先从承上启下的DTO开始入手
+DTO（Data Transfer Object）数据传输对象
+这个传输通常指的前后端之间的传输
+DTO是一个比较特殊的对象，他有两种存在形式：..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://yuzhupeng.top/myblogs/">
+        <img src="https://yuzhupeng.top/myblogs//images/avatar.png?v=1755503043926" class="site-logo">
+        <h1 class="site-title">fishyue</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/myblogs" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/myblogs/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/myblogs/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/myblogs/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/yuzhupeng" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      由奢入俭难，由俭入奢易
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/yuzhupeng" target="_blank">Fishyue</a> | <a class="rss" href="https://yuzhupeng.top/myblogs//atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">VO，BO，PO，DO，DTO的区别</h2>
+            <div class="post-date">2025-06-12</div>
+            
+            <div class="post-content" v-pre>
+              <p>看完图估计大部分人就已经有了一个直观的感受了</p>
+<figure data-type="image" tabindex="1"><img src="https://pic3.zhimg.com/v2-24e3ed681c02b6434681719753c53b40_1440w.jpg" alt="" loading="lazy"></figure>
+<p>面对这个图，让我们先从承上启下的DTO开始入手</p>
+<p><strong>DTO（Data Transfer Object）数据传输对象</strong></p>
+<p>这个传输通常指的前后端之间的传输</p>
+<p>DTO是一个比较特殊的对象，他有两种存在形式：</p>
+<p>在后端，他的存在形式是java对象，也就是在controller里面定义的那个东东，通常在后端不需要关心怎么从json转成java对象的，这个都是由一些成熟的框架帮你完成啦，比如spring框架</p>
+<p>在前端，他的存在形式通常是js里面的对象（也可以简单理解成json），也就是通过ajax请求的那个数据体</p>
+<p>这也是为什么把他画成横跨两层的原因</p>
+<p>这里可能会遇到个问题，现在微服务盛行，服务和服务之间调用的传输对象能叫DTO吗？<br>
+我的理解是看情况<br>
+DTO本身的一个隐含的意义是要能够完整的表达一个业务模块的输出<br>
+如果服务和服务之间相对独立，那就可以叫DTO<br>
+如果服务和服务之间不独立，每个都不是一个完整的业务模块，拆开可能仅仅是因为计算复杂度或者性能的问题，那这就不能够叫做DTO，只能是BO</p>
+<p><strong>VO（Value Object）值对象</strong><br>
+VO就是展示用的数据，不管展示方式是网页，还是客户端，还是APP，只要是这个东西是让人看到的，这就叫VO<br>
+VO主要的存在形式就是js里面的对象（也可以简单理解成json）</p>
+<p><strong>VO和DTO的区别</strong><br>
+主要有两个区别<br>
+一个是字段不一样，VO根据需要会删减一些字段<br>
+另一个是值不一样，VO会根据需要对DTO中的值进行展示业务的解释<br>
+举个简单的例子<br>
+DTO可能是这样的</p>
+<pre><code class="language-js">{
+    &quot;gender&quot;:&quot;男&quot;, 
+    &quot;age&quot;:35 
+} 
+</code></pre>
+<p>对于业务一来说只需要性别，而且因为是一个古风聊天室，也不能直接展示男，因此经过业务解释业务一的VO是</p>
+<pre><code class="language-js">{ 
+    &quot;gender&quot;:&quot;公子&quot; 
+} 
+</code></pre>
+<p>对于业务二来说只需要年龄，而且不需要精确的年龄，因此经过业务解释业务二的VO是</p>
+<pre><code class="language-js">{ 
+    &quot;age&quot;:&quot;30~39&quot; 
+} 
+</code></pre>
+<p><strong>PO（Persistant Object）持久对象</strong><br>
+PO比较好理解<br>
+简单说PO就是数据库中的记录，一个PO的数据结构对应着库中表的结构，表中的一条记录就是一个PO对象<br>
+通常PO里面除了get，set之外没有别的方法<br>
+对于PO来说，数量是相对固定的，一定不会超过数据库表的数量<br>
+等同于Entity，这俩概念是一致的</p>
+<p><strong>BO（Business Object）业务对象</strong><br>
+BO就是PO的组合<br>
+简单的例子比如说PO是一条交易记录，BO是一个人全部的交易记录集合对象<br>
+复杂点儿的例子PO1是交易记录，PO2是登录记录，PO3是商品浏览记录，PO4是添加购物车记录，PO5是搜索记录，BO是个人网站行为对象<br>
+BO是一个业务对象，一类业务就会对应一个BO，数量上没有限制，而且BO会有很多业务操作，也就是说除了get，set方法以外，BO会有很多针对自身数据进行计算的方法<br>
+为什么BO也画成横跨两层呢？原因是现在很多持久层框架自身就提供了数据组合的功能，因此BO有可能是在业务层由业务来拼装PO而成，也有可能是在数据库访问层由框架直接生成<br>
+很多情况下为了追求查询的效率，框架跳过PO直接生成BO的情况非常普遍，PO只是用来增删改使用</p>
+<p><strong>BO和DTO的区别</strong><br>
+这两个的区别主要是就是字段的删减<br>
+BO对内，为了进行业务计算需要辅助数据，或者是一个业务有多个对外的接口，BO可能会含有很多接口对外所不需要的数据，因此DTO需要在BO的基础上，只要自己需要的数据，然后对外提供<br>
+在这个关系上，通常不会有数据内容的变化，内容变化要么在BO内部业务计算的时候完成，要么在解释VO的时候完成</p>
+<p>OK，到这里这些关系基本就理清楚了</p>
+<p><strong>等等，DO是什么</strong><br>
+DO呢，标题不是还有个DO么？<br>
+上面这些概念基本上已经涵盖了全部的流程，DO只是跟其中一个概念相同<br>
+但是跟哪个概念相同呢？<br>
+现在主要有两个版本<br>
+一个是阿里巴巴的开发手册中的定义<br>
+DO（ Data Object）这个等同于上面的PO<br>
+另一个是在<a href="https://zhida.zhihu.com/search?content_id=110884076&amp;content_type=Article&amp;match_order=1&amp;q=DDD&amp;zd_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ6aGlkYV9zZXJ2ZXIiLCJleHAiOjE3NDk4ODA5MzEsInEiOiJEREQiLCJ6aGlkYV9zb3VyY2UiOiJlbnRpdHkiLCJjb250ZW50X2lkIjoxMTA4ODQwNzYsImNvbnRlbnRfdHlwZSI6IkFydGljbGUiLCJtYXRjaF9vcmRlciI6MSwiemRfdG9rZW4iOm51bGx9.76X571SMiTJH3YFhJu2NYP2T_8MM3I1OYKdUdzsJLxY&amp;zhida_source=entity">DDD</a>（Domain-Driven Design）领域驱动设计中<br>
+DO（Domain Object）这个等同于上面的BO</p>
+<p><strong>最后，让我们再说说实际应用</strong><br>
+这几个概念很完整，我们在用的时候是必须按这个来做吗？<br>
+当然不是的，系统和系统的复杂度不同，协作水平不同，完全没有必要教条主义，这些概念全上<br>
+上哪些概念，省哪些，我给一些实际建议<br>
+1，PO这个没法省，不管叫PO还是Entity，怎么着都得有<br>
+2，一些工具类的系统和一些业务不是很复杂的系统DTO是可以和BO合并成一个，当业务扩展的时候注意拆分就行<br>
+3，VO是可以第一个优化掉的，展示业务不复杂的可以压根儿不要，直接用DTO<br>
+4，这也是最重要的一条，概念是给人用的，多人协作的时候一定要保证大家的概念一致，赶紧把这篇文章转发给跟你协作的人吧</p>
+<h1 id="什么是ao-bo-do-dao-dto-domain-entity-mapper-po-pojo-qo-query-req-resp-rpc-vo-websocket">什么是AO、BO、DO、DAO、DTO、Domain、Entity、Mapper、PO、POJO、QO、Query、Req、Resp、RPC、VO、WebSocket</h1>
+<h2 id="1-aoapplication-object应用对象"><strong>1. AO（Application Object，应用对象）</strong></h2>
+<ul>
+<li>
+<p><strong>用途</strong>：协调多个业务对象或服务，处理<strong>跨业务域的复杂流程</strong>（如订单支付、用户注册）。</p>
+</li>
+<li>
+<p><strong>特点</strong>：位于应用层，负责流程编排，不直接处理业务逻辑。</p>
+</li>
+</ul>
+<h2 id="2-bobusiness-object业务对象"><strong>2. BO（Business Object，业务对象）</strong></h2>
+<ul>
+<li>
+<p><strong>用途</strong>：封装<strong>核心业务逻辑</strong>（如订单计算、库存扣减）。</p>
+</li>
+<li>
+<p><strong>特点</strong>：包含业务规则和状态管理。</p>
+</li>
+</ul>
+<h2 id="3-dodomain-object领域对象"><strong>3. DO（Domain Object，领域对象）</strong></h2>
+<ul>
+<li>
+<p><strong>用途</strong>：在领域驱动设计（DDD）中表示<strong>业务领域核心概念</strong>（如用户、订单）。</p>
+</li>
+<li>
+<p><strong>特点</strong>：包含数据和业务行为，与持久化无关。</p>
+</li>
+</ul>
+<h2 id="4-daodata-access-object数据访问对象"><strong>4. DAO（Data Access Object，数据访问对象）</strong></h2>
+<ul>
+<li>
+<p><strong>用途</strong>：封装数据库操作（CRUD），隔离数据库细节。</p>
+</li>
+<li>
+<p><strong>特点</strong>：直接操作 PO（持久化对象）。</p>
+</li>
+</ul>
+<h2 id="5-dtodata-transfer-object数据传输对象"><strong>5. DTO（Data Transfer Object，数据传输对象）</strong></h2>
+<ul>
+<li>
+<p><strong>用途</strong>：在层间或服务间传输数据（如 Controller → Service）。</p>
+</li>
+<li>
+<p><strong>特点</strong>：纯数据结构，无业务逻辑。</p>
+</li>
+</ul>
+<h2 id="6-domain领域模型"><strong>6. Domain（领域模型）</strong></h2>
+<ul>
+<li>
+<p><strong>用途</strong>：DDD 中的核心模型，包含实体（Entity）、值对象（Value Object）、聚合根（Aggregate Root）等。</p>
+</li>
+<li>
+<p><strong>特点</strong>：聚焦业务语义，与数据库无关。</p>
+</li>
+</ul>
+<h2 id="7-entity实体"><strong>7. Entity（实体）</strong></h2>
+<ul>
+<li>
+<p><strong>用途</strong>：具有唯一标识（ID）的业务对象（如用户），常与数据库表映射。</p>
+</li>
+<li>
+<p><strong>特点</strong>：通过 ID 区分实例，可能包含业务逻辑。</p>
+</li>
+</ul>
+<h2 id="8-mapper映射器"><strong>8. Mapper（映射器）</strong></h2>
+<ul>
+<li><strong>用途</strong>：在不同对象类型间转换数据。</li>
+</ul>
+<h2 id="9-popersistent-object持久化对象"><strong>9. PO（Persistent Object，持久化对象）</strong></h2>
+<ul>
+<li>
+<p><strong>用途</strong>：直接映射数据库表结构（如 JPA/Hibernate 的 <code>@Entity</code>）。</p>
+</li>
+<li>
+<p><strong>特点</strong>：字段与表列一一对应。</p>
+</li>
+</ul>
+<h2 id="10-pojoplain-old-java-object简单java对象"><strong>10. POJO（Plain Old Java Object，简单Java对象）</strong></h2>
+<ul>
+<li>
+<p><strong>用途</strong>：泛指不依赖框架的普通 Java 对象。</p>
+</li>
+<li>
+<p><strong>特点</strong>：无强制继承或注解，灵活通用。</p>
+</li>
+</ul>
+<h2 id="11-qoquery-object查询对象"><strong>11. QO（Query Object，查询对象）</strong></h2>
+<ul>
+<li>
+<p><strong>用途</strong>：封装复杂查询条件（如分页、排序）。</p>
+</li>
+<li>
+<p><strong>特点</strong>：解耦 DAO 层的查询参数。</p>
+</li>
+</ul>
+<h2 id="12-query查询参数"><strong>12. Query（查询参数）</strong></h2>
+<ul>
+<li><strong>用途</strong>：同 QO，表示查询条件（如 <code>UserQuery</code>）。</li>
+</ul>
+<h2 id="13-reqresp请求响应对象"><strong>13. Req/Resp（请求/响应对象）</strong></h2>
+<ul>
+<li><strong>用途</strong>：专用于 API 接口的输入（Req）和输出（Resp）。</li>
+</ul>
+<h2 id="14-rpcremote-procedure-call远程过程调用"><strong>14. RPC（Remote Procedure Call，远程过程调用）</strong></h2>
+<ul>
+<li><strong>用途</strong>：跨服务或跨进程通信的协议规范。</li>
+</ul>
+<h2 id="15-vovalue-object-view-object"><strong>15. VO（Value Object / View Object）</strong></h2>
+<ul>
+<li>
+<p><strong>用途</strong>：</p>
+<ul>
+<li><strong>值对象</strong>：不可变的业务概念（如 <code>Money</code>）。</li>
+<li><strong>视图对象</strong>：前端展示数据聚合。</li>
+</ul>
+</li>
+</ul>
+<h2 id="16-websocket"><strong>16. WebSocket</strong></h2>
+<ul>
+<li>
+<p><strong>用途</strong>：双向实时通信协议的消息对象（如聊天消息）。</p>
+</li>
+<li>
+<p><strong>特点</strong>：定义消息格式（JSON/二进制）。</p>
+</li>
+</ul>
+<hr>
+<h2 id="关键对比表"><strong>关键对比表</strong></h2>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>核心用途</th>
+<th>典型场景</th>
+<th>特点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>DTO</strong></td>
+<td>跨层/跨服务数据传输</td>
+<td>API 请求/响应</td>
+<td>无逻辑，纯数据容器</td>
+</tr>
+<tr>
+<td><strong>VO</strong></td>
+<td>前端展示</td>
+<td>页面数据聚合</td>
+<td>适配展示需求</td>
+</tr>
+<tr>
+<td><strong>BO</strong></td>
+<td>封装业务规则</td>
+<td>订单计算、库存管理</td>
+<td>包含业务逻辑</td>
+</tr>
+<tr>
+<td><strong>Entity</strong></td>
+<td>持久化+业务实体</td>
+<td>数据库映射的领域对象</td>
+<td>有唯一标识（ID）</td>
+</tr>
+<tr>
+<td><strong>PO</strong></td>
+<td>直接映射数据库表</td>
+<td>JPA/Hibernate 实体</td>
+<td>与表结构严格对应</td>
+</tr>
+<tr>
+<td><strong>RPC</strong></td>
+<td>跨进程通信协议</td>
+<td>微服务间调用</td>
+<td>定义请求/响应格式</td>
+</tr>
+<tr>
+<td><strong>WebSocket</strong></td>
+<td>实时双向通信</td>
+<td>聊天室、实时通知</td>
+<td>基于消息驱动</td>
+</tr>
+</tbody>
+</table>
+<h2 id="前言">前言</h2>
+<p>最近有小伙伴问我：O、VO、BO、DTO、DAO、POJO有什么区别？</p>
+<p>第一眼看到，你可能也会有点懵。</p>
+<p>这些对象的概念很多，确实容易搞混。</p>
+<p>今天这篇文章跟大家一起聊聊这6种对象的含义、职责、区别和常见的坑，希望对你会有所帮助。</p>
+<h2 id="一-6种对象的职责边界">一、6种对象的职责边界</h2>
+<p><strong>对象设计的本质是关注点分离</strong>——每个对象只做一件事，且做好它！</p>
+<h3 id="11-po">1.1 PO</h3>
+<p>它的含义是Persistent Object，即持久化对象。</p>
+<ul>
+<li>
+<p><strong>职责</strong>：与数据库表严格1:1映射，<strong>仅承载数据存储结构</strong></p>
+</li>
+<li>
+<p><strong>特征</strong>：<p></p><p></p><ul><p></p><p></p><li>属性与表字段完全对应</li><p></p><p></p><li>无业务逻辑方法（仅有getter/setter）</li><p></p><p></p></ul><p></p><p></p></p>
+</li>
+<li>
+<p><strong>代码示例</strong>：</p>
+<p>public class UserPO {<br>
+private Long id;      // 对应表主键<br>
+private String name;  // 对应name字段<br>
+}</p>
+</li>
+</ul>
+<h3 id="12-dao">1.2 DAO</h3>
+<p>它的含义是Data Access Object，即数据访问对象。</p>
+<ul>
+<li>
+<p><strong>职责</strong>：<strong>封装所有数据库操作</strong>（CRUD），隔离业务与存储细节</p>
+</li>
+<li>
+<p><strong>特征</strong>：<p></p><p></p><ul><p></p><p></p><li>接口方法对应SQL操作</li><p></p><p></p><li>返回PO或PO集合</li><p></p><p></p></ul><p></p><p></p></p>
+</li>
+<li>
+<p><strong>代码示例</strong>：</p>
+<p>public interface UserDao {<br>
+// 根据ID查询PO<br>
+UserPO findById(Long id);</p>
+<pre><code>  // 分页查询  
+  List&lt;UserPO&gt; findPage(@Param(&quot;offset&quot;) int offset, @Param(&quot;limit&quot;) int limit);  
+</code></pre>
+<p>}</p>
+</li>
+</ul>
+<p><strong>底层原理</strong>：DAO模式 = 接口 + 实现类 + PO</p>
+<figure data-type="image" tabindex="2"><img src="https://img2024.cnblogs.com/blog/2238006/202508/2238006-20250814170755724-1671378180.png" alt="image" loading="lazy"></figure>
+<h3 id="13-bo">1.3 BO</h3>
+<p>它的含义是Business Object，即业务对象。</p>
+<ul>
+<li>
+<p><strong>职责</strong>：<strong>封装核心业务逻辑</strong>，聚合多个PO完成复杂操作</p>
+</li>
+<li>
+<p><strong>特征</strong>：<p></p><p></p><ul><p></p><p></p><li>包含业务状态机、校验规则</li><p></p><p></p><li>可持有多个PO引用</li><p></p><p></p></ul><p></p><p></p></p>
+</li>
+<li>
+<p><strong>代码示例</strong>：订单退款BO</p>
+<p>public class OrderBO {<br>
+// 主订单数据<br>
+private OrderPO orderPO;<br>
+// 子订单项<br>
+private List<OrderItemPO> items;</p>
+<pre><code> // 业务方法：执行退款  
+ public RefundResult refund(String reason) {     
+ if (!&quot;PAID&quot;.equals(orderPO.getStatus())) {  
+    throw new IllegalStateException(&quot;未支付订单不可退款&quot;); 
+ }  // 计算退款金额、调用支付网关等  }  
+</code></pre>
+<p>}</p>
+</li>
+</ul>
+<h3 id="14-dto">1.4 DTO</h3>
+<p>它的含义是Data Transfer Object，即数据传输对象。</p>
+<ul>
+<li>
+<p><strong>职责</strong>：<strong>跨层/跨服务数据传输</strong>，屏蔽敏感字段</p>
+</li>
+<li>
+<p><strong>特征</strong>：<p></p><p></p><ul><p></p><p></p><li>属性集是PO的子集（如排除<code>password</code>字段）</li><p></p><p></p><li>支持序列化（实现<code>Serializable</code>）</li><p></p><p></p></ul><p></p><p></p></p>
+</li>
+<li>
+<p><strong>代码示例</strong>：用户信息DTO</p>
+<p>public class UserDTO implements Serializable {<br>
+private Long id;<br>
+private String name;<br>
+}</p>
+</li>
+</ul>
+<h3 id="15-vo">1.5 VO</h3>
+<p>它的含义是View Object，即视图对象。</p>
+<ul>
+<li>
+<p><strong>职责</strong>：<strong>适配前端展示</strong>，包含渲染逻辑</p>
+</li>
+<li>
+<p><strong>特征</strong>：<p></p><p></p><ul><p></p><p></p><li>属性可包含格式化数据（如日期转<code>yyyy-MM-dd</code>）</li><p></p><p></p><li>聚合多表数据（如订单VO包含用户名字）</li><p></p><p></p></ul><p></p><p></p></p>
+</li>
+<li>
+<p><strong>代码示例</strong>：</p>
+<p>public class OrderVO {<br>
+private String orderNo;<br>
+private String createTime; // 格式化后的日期   private String userName;   // 关联用户表字段</p>
+<pre><code>//状态码转文字描述  
+public String getStatusText() {  
+   return OrderStatus.of(this.status).getDesc();  
+}  
+</code></pre>
+<p>}</p>
+</li>
+</ul>
+<h3 id="16-pojo">1.6 POJO</h3>
+<p>它的含义是Plain Old Java Object，即普通Java对象。</p>
+<ul>
+<li>
+<p><strong>职责</strong>：<strong>基础数据容器</strong>，可扮演PO/DTO/VO角色</p>
+</li>
+<li>
+<p><strong>特征</strong>：<p></p><p></p><ul><p></p><p></p><li>只有属性+getter/setter</li><p></p><p></p><li>无框架依赖（如不继承Spring类）</li><p></p><p></p></ul><p></p><p></p></p>
+</li>
+<li>
+<p><strong>典型实现</strong>：Lombok简化代码</p>
+<p>// 自动生成getter/setter<br>
+@Data<br>
+public class UserPOJO {<br>
+private Long id;<br>
+private String name;<br>
+}</p>
+</li>
+</ul>
+<h2 id="二-主流的对象流转模型">二、主流的对象流转模型</h2>
+<h3 id="场景1">场景1</h3>
+<p>传统三层架构（DAO → DTO → VO）。</p>
+<p><strong>适用系统</strong>：后台管理系统、工具类应用</p>
+<p><strong>核心流程</strong>：</p>
+<figure data-type="image" tabindex="3"><img src="https://img2024.cnblogs.com/blog/2238006/202508/2238006-20250814170814243-1458026113.png" alt="image" loading="lazy"></figure>
+<p><strong>代码示例</strong>：用户查询服务</p>
+<pre><code>// Service层  
+public UserDTO getUserById(Long id) {  
+   UserPO userPO = userDao.findById(id); // 从DAO获取PO  
+   UserDTO dto = new UserDTO();  
+   dto.setId(userPO.getId());  
+   dto.setName(userPO.getName()); // 过滤敏感字段  
+   return dto; // 返回DTO  
+}  
+
+// Controller层  
+public UserVO getUser(Long id) {  
+   UserDTO dto = userService.getUserById(id);  
+   UserVO vo = new UserVO();  
+   vo.setUserId(dto.getId());  
+   vo.setUserName(dto.getName());  
+   vo.setRegisterTime(formatDate(dto.getCreateTime())); // 格式化日期  
+   return vo;  
+}  
+</code></pre>
+<p><strong>优点</strong>：简单直接，适合CRUD场景</p>
+<p><strong>缺点</strong>：业务逻辑易泄漏到Service层</p>
+<h3 id="场景2">场景2</h3>
+<p>DDD架构（PO → DO → DTO → VO）。</p>
+<p><strong>适用系统</strong>：电商、金融等复杂业务系统</p>
+<p><strong>核心流程</strong>：</p>
+<figure data-type="image" tabindex="4"><img src="https://img2024.cnblogs.com/blog/2238006/202508/2238006-20250814170827171-2014308076.png" alt="image" loading="lazy"></figure>
+<p><strong>关键角色</strong>：DO（Domain Object）替代BO</p>
+<p><strong>代码示例</strong>：订单支付域</p>
+<pre><code>// Domain层：订单领域对象  
+public class OrderDO {  
+   private OrderPO orderPO;  
+   private PaymentPO paymentPO;  
+
+   // 业务方法：支付校验  
+   public void validatePayment() {  
+     if (paymentPO.getAmount() &lt; orderPO.getTotalAmount()) {  
+        throw new PaymentException(&quot;支付金额不足&quot;);  
+      } 
+   }  
+}  
+
+// App层：协调领域对象  
+public OrderPaymentDTO pay(OrderPayCmd cmd) {  
+    OrderDO order = orderRepo.findById(cmd.getOrderId());  
+    order.validatePayment(); // 调用领域方法  return OrderConverter.toDTO(order); // 转DTO  
+}  
+</code></pre>
+<p><strong>优点</strong>：业务高内聚，适合复杂规则系统</p>
+<p><strong>缺点</strong>：转换层级多，开发成本高</p>
+<h2 id="三-高效转换工具">三、高效转换工具</h2>
+<p>手动转换对象？效率低且易错！</p>
+<p>苏三在这里推荐三大利器。</p>
+<h3 id="31-mapstruct编译期代码生成">3.1 MapStruct：编译期代码生成</h3>
+<p><strong>原理</strong>：APT注解处理器生成转换代码</p>
+<p><strong>示例</strong>：PO转DTO</p>
+<pre><code>@Mapper  
+public interface UserConverter {  
+   UserConverter INSTANCE = Mappers.getMapper(UserConverter.class);  
+
+   @Mapping(source = &quot;createTime&quot;, target = &quot;registerDate&quot;)  
+   UserDTO poToDto(UserPO po);  
+}  
+
+// 编译后生成UserConverterImpl.java  
+public class UserConverterImpl {  
+   public UserDTO poToDto(UserPO po) {  
+      UserDTO dto = new UserDTO();  
+      dto.setRegisterDate(po.getCreateTime()); // 自动赋值！  
+      return dto;  
+  }  
+}  
+</code></pre>
+<p><strong>优点</strong>：零反射损耗，性能接近手写代码</p>
+<p><strong>开源地址</strong>：<a href="https://github.com/mapstruct/mapstruct">https://github.com/mapstruct/mapstruct</a></p>
+<h3 id="32-dozer-lombok注解驱动转换">3.2 Dozer + Lombok：注解驱动转换</h3>
+<p><strong>组合方案</strong>：</p>
+<ul>
+<li>
+<p><strong>Lombok</strong>：自动生成getter/setter</p>
+</li>
+<li>
+<p><strong>Dozer</strong>：XML/注解配置字段映射</p>
+<p>// Lombok注解<br>
+@Data<br>
+public class UserVO {<br>
+private String userId;<br>
+private String userName;<br>
+}</p>
+<p>// 转换配置<br>
+<field><br>
+<a>userId</a><br>
+<b>id</b><br>
+</field></p>
+</li>
+</ul>
+<p><strong>适用场景</strong>：字段名不一致的复杂转换</p>
+<h3 id="33-手动builder模式精细控制">3.3 手动Builder模式：精细控制</h3>
+<p><strong>适用场景</strong>：需要动态构造的VO</p>
+<pre><code>public class OrderVOBuilder {  
+   public OrderVO build(OrderDTO dto) {  
+     return OrderVO.builder()  
+        .orderNo(dto.getOrderNo())  
+        .amount(dto.getAmount() + &quot;元&quot;) // 动态拼接  
+        .statusText(convertStatus(dto.getStatus()))  
+        .build();  
+    }  
+}  
+</code></pre>
+<h2 id="四-避坑指南">四、避坑指南</h2>
+<h3 id="坑1po直接返回给前端">坑1：PO直接返回给前端</h3>
+<pre><code>// 致命错误：暴露数据库敏感字段！  
+public UserPO getUser(Long id) {  
+  // 返回的PO包含password  
+  return userDao.findById(id); 
+}  
+</code></pre>
+<p><strong>解决方案</strong>：</p>
+<ul>
+<li>使用DTO过滤字段</li>
+<li>注解屏蔽：<code>@JsonIgnore</code></li>
+</ul>
+<h3 id="坑2dto中嵌入业务逻辑">坑2：DTO中嵌入业务逻辑</h3>
+<pre><code>public class OrderDTO {
+    // 错误！DTO不应有业务方法  
+    public void validate() { 
+       if (amount &lt; 0) 
+          throw new Exception();  
+    }  
+}  
+</code></pre>
+<p><strong>本质错误</strong>：混淆DTO与BO的职责</p>
+<h3 id="坑3循环嵌套转换">坑3：循环嵌套转换</h3>
+<pre><code>// OrderVO中嵌套List&lt;ProductVO&gt;  
+public class OrderVO {
+   // 嵌套对象  
+   private List&lt;ProductVO&gt; products; 
+}  
+
+// 转换时触发N+1查询  
+orderVO.setProducts(order.getProducts()
+       .stream()  
+       .map(p -&gt; convertToVO(p)) // 循环查询数据库  
+       .collect(toList()));  
+</code></pre>
+<p><strong>优化方案</strong>：批量查询 + 并行转换</p>
+<h3 id="五-如何选择对象模型">五、如何选择对象模型？</h3>
+<figure data-type="image" tabindex="5"><img src="https://img2024.cnblogs.com/blog/2238006/202508/2238006-20250814170846460-909071477.png" alt="image" loading="lazy"></figure>
+<h2 id="总结">总结</h2>
+<p>关于对象的4个核心原则：</p>
+<ol>
+<li><strong>单一职责</strong>： <p></p><p>PO只存数据，BO只管业务，VO只负责展示——<strong>绝不越界！</strong></p></li>
+<li><strong>安全隔离</strong>：<p></p><p></p><ul><p></p><p></p><li>PO永不出DAO层（防数据库泄露）</li><p></p><p></p><li>VO永不出Controller（防前端逻辑污染服务）</li><p></p><p></p></ul><p></p><p></p></li>
+<li><strong>性能优先</strong>：<p></p><p></p><ul><p></p><p></p><li>大对象转换用<strong>MapStruct</strong>（编译期生成代码）</li><p></p><p></p><li>嵌套集合用<strong>批量查询</strong>（杜绝N+1）</li><p></p><p></p></ul><p></p><p></p></li>
+<li><strong>适度设计</strong>：<p></p><p></p><ul><p></p><p></p><li>10张表以内的系统：可用POJO一撸到底</li><p></p><p></p><li>百张表以上核心系统：<strong>必须严格分层</strong></li><p></p><p></p></ul><p></p><p></p></li>
+</ol>
+<p>对象设计没有银弹，<strong>理解业务比套用模式更重要</strong>！</p>
+<p>当你在为对象命名纠结时，不妨回到业务的起点问一句：“它此刻的核心职责是什么？”</p>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://yuzhupeng.top/myblogs/post/cheng-xu-yuan-de-di-ceng-si-wei/">
+                  <h3 class="post-title">
+                    程序员的底层思维
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>MySQL 索引核心要点摘要（结构化） | fishyue</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://yuzhupeng.top/myblogs//favicon.ico?v=1755503043926">
+<link rel="stylesheet" href="https://yuzhupeng.top/myblogs//styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="MySQL 索引核心要点摘要（结构化）
+
+1. 模糊匹配（LIKE）与索引
+
+
+
+匹配方式
+能否使用索引
+解决方案
+
+
+
+
+LIKE 'prefix%'（前缀匹配）
+✅ 能使用普通 B‑Tree 索引
+直接建普通索引
+
+
+LIKE '%su..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://yuzhupeng.top/myblogs/">
+        <img src="https://yuzhupeng.top/myblogs//images/avatar.png?v=1755503043926" class="site-logo">
+        <h1 class="site-title">fishyue</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/myblogs" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/myblogs/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/myblogs/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/myblogs/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/yuzhupeng" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      由奢入俭难，由俭入奢易
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/yuzhupeng" target="_blank">Fishyue</a> | <a class="rss" href="https://yuzhupeng.top/myblogs//atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">MySQL 索引核心要点摘要（结构化）</h2>
+            <div class="post-date">2025-08-18</div>
+            
+            <div class="post-content" v-pre>
+              <p><strong>MySQL 索引核心要点摘要（结构化）</strong></p>
+<hr>
+<h2 id="1-模糊匹配like与索引">1. 模糊匹配（LIKE）与索引</h2>
+<table>
+<thead>
+<tr>
+<th>匹配方式</th>
+<th>能否使用索引</th>
+<th>解决方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>LIKE 'prefix%'</code>（前缀匹配）</td>
+<td>✅ 能使用普通 B‑Tree 索引</td>
+<td>直接建普通索引</td>
+</tr>
+<tr>
+<td><code>LIKE '%suffix'</code>（后缀匹配）</td>
+<td>❌ 索引失效（全表扫描）</td>
+<td>① 生成 <strong>反转列</strong> <code>REVERSE(col)</code> 并建索引；<br>② MySQL 8.0+ 可用 <strong>函数索引</strong>（生成列）</td>
+</tr>
+<tr>
+<td><code>LIKE '%mid%'</code>（左右模糊）</td>
+<td>❌ 索引失效</td>
+<td>同上，使用 N‑gram、全文索引或 Elasticsearch 等外部检索方案</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="2-函数表达式索引generated-column">2. 函数/表达式索引（Generated Column）</h2>
+<ul>
+<li>MySQL 8.0 起支持 <strong>函数索引</strong>：把表达式结果存入隐藏/显式生成列，再对该列建索引。</li>
+</ul>
+<pre><code class="language-sql">ALTER TABLE t ADD COLUMN rev_name VARCHAR(255) AS (REVERSE(name)) STORED;
+CREATE INDEX idx_rev_name ON t (rev_name);
+</code></pre>
+<ul>
+<li>仅在 <strong>WHERE / ON</strong> 条件中使用该函数时才能走索引；在 SELECT、ORDER BY、GROUP BY 等仅做展示的地方不影响索引使用。</li>
+</ul>
+<hr>
+<h2 id="3-数据类型转换与索引">3. 数据类型转换与索引</h2>
+<ul>
+<li><strong>列是数值型</strong>，查询条件写成字符串（如 <code>'123'</code>）仍会走索引，因为 MySQL 会把字符串转为数值后比较。</li>
+<li><strong>列是字符串型</strong>，查询条件写成数值（如 <code>WHERE name = 123</code>）会导致 <strong>隐式转为数值</strong>，索引失效，回到全表扫描。<br>
+<strong>建议</strong>：</li>
+</ul>
+<ul>
+<li>数值列不加引号；</li>
+<li>字符串列加单/双引号。</li>
+</ul>
+<hr>
+<h2 id="4-联合索引复合索引与最左前缀原则">4. 联合索引（复合索引）与最左前缀原则</h2>
+<ul>
+<li>索引列的顺序决定查询能否使用该索引。</li>
+<li><strong>最左匹配</strong>：只有从索引最左边开始连续的等值列才会被使用。</li>
+</ul>
+<p><strong>可用示例</strong>（索引 <code>(a,b,c)</code>）</p>
+<table>
+<thead>
+<tr>
+<th>查询条件</th>
+<th>是否走索引</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WHERE a=1</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>WHERE a=1 AND b=2</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>WHERE a=1 AND b=2 AND c=3</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>WHERE b=2</code></td>
+<td>❌</td>
+</tr>
+<tr>
+<td><code>WHERE c=3</code></td>
+<td>❌</td>
+</tr>
+<tr>
+<td><code>WHERE b=2 AND c=3</code></td>
+<td>❌</td>
+</tr>
+<tr>
+<td><code>WHERE a=1 AND c=0</code></td>
+<td>✅（仅使用 <code>a</code>）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>范围条件</strong>（<code>&gt;、&gt;=、&lt;、BETWEEN、LIKE 'p%'</code>）一旦出现，就会 <strong>阻断</strong>后续列的索引使用。</li>
+</ul>
+<hr>
+<h2 id="5-where-条件的书写顺序">5. WHERE 条件的书写顺序</h2>
+<ul>
+<li>MySQL 优化器会 <strong>重新排列</strong> WHERE 子句以获得最佳执行计划，顺序本身不决定是否走索引。</li>
+<li>但 <strong>把最左索引列的等值条件写在前面</strong>，有助于阅读和调试，也避免因错误的提示误以为顺序有影响。</li>
+</ul>
+<hr>
+<h2 id="6-or-in-not-系列">6. OR / IN / NOT 系列</h2>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>索引使用情况</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WHERE col1 = 'a' OR col1 = 'b'</code></td>
+<td>✅ (同一列的 OR)</td>
+<td>可走索引的 <strong>合并</strong>（union）</td>
+</tr>
+<tr>
+<td><code>WHERE indexed_col = 1 OR non_indexed_col = 2</code></td>
+<td>❌ 触发全表扫描</td>
+<td>任意一个条件不走索引，整体失效</td>
+</tr>
+<tr>
+<td><code>WHERE col IN (1,2,3,…)</code></td>
+<td>✅ 在大多数情况下走索引</td>
+<td><strong>IN 元素 ≤ 1000</strong> 且匹配度 &lt;≈30% 时更佳</td>
+</tr>
+<tr>
+<td><code>WHERE col NOT IN (…)</code>、<code>col != …</code>、<code>NOT LIKE</code></td>
+<td>❌ 通常不能走索引</td>
+<td>只在 <strong>极端低基数</strong>、<strong>小表</strong> 时可能走索引</td>
+</tr>
+<tr>
+<td><strong>例外</strong></td>
+<td>当优化器评估<strong>全表扫描成本更低</strong>（如返回 &gt;30% 行）时，即使写 <code>IN</code> 也会放弃索引</td>
+<td>需通过 <code>FORCE INDEX</code> 或统计信息调优纠正</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="7-范围查询对复合索引的影响">7. 范围查询对复合索引的影响</h2>
+<pre><code class="language-sql">-- 索引 (shop_id, created_at, order_status)
+SELECT * FROM _order
+WHERE shop_id = 1               -- 等值，可用
+  AND created_at &gt; '2021-01-01' -- 范围，阻断后续列
+  AND order_status = 10;       -- **不走索引**（因为已被范围查询阻断）
+</code></pre>
+<ul>
+<li>若范围条件在最左列，则后续列全部失效。</li>
+<li>若需要同时过滤 <code>order_status</code>，考虑 <strong>拆分索引</strong> 或使用 <strong>覆盖索引</strong>（包括 <code>order_status</code>）与 <code>WHERE</code> 重排。</li>
+</ul>
+<hr>
+<h2 id="8-覆盖索引covering-index">8. 覆盖索引（Covering Index）</h2>
+<ul>
+<li>当查询的 <strong>所有列</strong>（包括 SELECT、WHERE、ORDER BY、GROUP BY）都包含在同一个二级索引的叶子节点时，<strong>不需要回表</strong>，直接返回结果。</li>
+<li>常见做法：在联合索引中把 <strong>需要返回的列</strong>（非主键列）也加入索引。</li>
+</ul>
+<pre><code class="language-sql">CREATE INDEX idx_user_name_addr ON user (name, address);
+SELECT name, address FROM user WHERE name='seven';
+-- 直接从索引返回，无回表
+</code></pre>
+<hr>
+<h2 id="9-asc-desc-混合排序与索引">9. ASC / DESC 混合排序与索引</h2>
+<ul>
+<li>MySQL 8.0+ 支持 <strong>显式指定排序方向</strong>的二级索引（如 <code>(a ASC, b DESC)</code>），但 <strong>老版本只能使用 ASC</strong>。</li>
+<li>当 <code>ORDER BY</code> 的列顺序或方向与索引定义不一致时，索引会失效，导致 <strong>文件排序</strong>（filesort）。</li>
+</ul>
+<pre><code class="language-sql">-- 索引 (customer_id ASC, order_date ASC)
+SELECT * FROM orders ORDER BY customer_id DESC, order_date; -- 索引失效
+</code></pre>
+<ul>
+<li>解决办法：
+<ul>
+<li>创建匹配的 <code>(customer_id DESC, order_date ASC)</code> 索引（MySQL 8.0+）。</li>
+<li>或者只使用 <strong>单列索引</strong> + 二次排序。</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="10-更新索引列的代价">10. 更新索引列的代价</h2>
+<ul>
+<li><strong>INSERT / UPDATE / DELETE</strong> 涉及索引列时，需要 <strong>维护 B‑Tree</strong>（分裂、合并、重新平衡）。</li>
+<li>对高并发写入、频繁更新的列（如状态位）<strong>不建议建索引</strong>，或使用 <strong>延迟写、分表</strong> 等方案。</li>
+</ul>
+<hr>
+<h2 id="11-必须建立索引的关键字段">11. 必须建立索引的关键字段</h2>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>推荐索引类型</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UPDATE</code> / <code>DELETE</code> 的 <code>WHERE</code> 条件</td>
+<td>单列或复合索引</td>
+</tr>
+<tr>
+<td><code>SELECT … ORDER BY</code>、<code>GROUP BY</code>、<code>DISTINCT</code></td>
+<td>包含排序/分组列的索引</td>
+</tr>
+<tr>
+<td>多表 <code>JOIN</code>（ON 条件）</td>
+<td>连接列的索引</td>
+</tr>
+<tr>
+<td>高频过滤的业务字段（如 <code>status</code>、<code>type</code>）</td>
+<td>视基数决定，必要时使用 <strong>位图索引</strong>（MySQL 不直接支持）</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="12-子查询-vs-join">12. 子查询 vs. JOIN</h2>
+<ul>
+<li><strong>JOIN</strong> 更易被优化器利用 <strong>索引合并、哈希/嵌套循环</strong> 等高级执行计划。</li>
+<li><strong>子查询</strong>（尤其是相关子查询）往往导致 <strong>多次扫描</strong>，性能劣于等价的 JOIN。</li>
+<li>推荐：把可改写为 <strong>等价的内连接</strong> 的子查询改写为 JOIN。</li>
+</ul>
+<hr>
+<h2 id="13-order-by-与-limit-的深分页优化">13. ORDER BY 与 LIMIT 的深分页优化</h2>
+<h3 id="131-limit-的成本">13.1 LIMIT 的成本</h3>
+<table>
+<thead>
+<tr>
+<th>语句</th>
+<th>执行过程</th>
+<th>性能影响</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SELECT * FROM t ORDER BY id LIMIT 0, 10</code></td>
+<td>直接取前 10 条索引行</td>
+<td>快</td>
+</tr>
+<tr>
+<td><code>SELECT * FROM t ORDER BY id LIMIT 500000, 10</code></td>
+<td>读取 500010 条索引行 → 丢弃前 500000 条</td>
+<td>较慢（I/O、CPU）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="132-优化方案">13.2 优化方案</h3>
+<ol>
+<li><strong>Keyset Pagination（基于索引的分页）</strong><pre><code class="language-sql">SELECT * FROM t WHERE id &gt; :last_id ORDER BY id LIMIT 10;
+</code></pre>
+</li>
+<li><strong>子查询获取起始点</strong>（仅返回主键列）<pre><code class="language-sql">SELECT * FROM t
+WHERE id &gt;= (SELECT id FROM t ORDER BY id LIMIT 500000, 1)
+ORDER BY id LIMIT 10;
+</code></pre>
+</li>
+<li><strong>使用覆盖索引</strong>：只查询主键列，减少回表数据量。</li>
+<li><strong>使用更高效的存储引擎/缓存</strong>（如 <strong>InnoDB</strong> 的自适应哈希）或 <strong>物化视图</strong>。</li>
+</ol>
+<hr>
+<h2 id="14-大表千万级性能提升手段">14. 大表（千万级+）性能提升手段</h2>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>适用场景</th>
+<th>关键点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>合理建索引</strong>（最左前缀、覆盖索引）</td>
+<td>常用过滤/排序列</td>
+<td><code>EXPLAIN</code> 检查是否走索引</td>
+</tr>
+<tr>
+<td><strong>水平分区</strong>（基于时间、业务维度）</td>
+<td>时间范围查询频繁</td>
+<td>分区裁剪，避免扫描无关分区</td>
+</tr>
+<tr>
+<td><strong>读写分离</strong></td>
+<td>写入压力大、读请求多</td>
+<td>主库写，多个从库读</td>
+</tr>
+<tr>
+<td><strong>分库分表</strong>（垂直/水平）</td>
+<td>单库并发/容量到达上限</td>
+<td>业务拆分、统一路由层</td>
+</tr>
+<tr>
+<td><strong>缓存</strong>（Redis、Memcached）</td>
+<td>热点数据、计数、查询结果</td>
+<td>缓存失效策略、缓存穿透防护</td>
+</tr>
+<tr>
+<td><strong>外部搜索</strong>（Elasticsearch、OpenSearch）</td>
+<td>高级全文、模糊搜索</td>
+<td>业务层同步、双写</td>
+</tr>
+<tr>
+<td><strong>冷热数据分离</strong></td>
+<td>老数据访问少</td>
+<td>冷库归档、热库保留活跃数据</td>
+</tr>
+<tr>
+<td><strong>升级数据库引擎</strong>（TiDB、OceanBase）</td>
+<td>需要分布式水平扩展</td>
+<td>兼容 MySQL 协议，评估迁移成本</td>
+</tr>
+<tr>
+<td><strong>表结构优化</strong>（列裁剪、压缩）</td>
+<td>大宽表</td>
+<td>只保留必要列、使用 <code>ROW_FORMAT=COMPRESSED</code></td>
+</tr>
+<tr>
+<td><strong>统计信息维护</strong></td>
+<td>优化器判断失误</td>
+<td><code>ANALYZE TABLE</code>、<code>UPDATE STATISTICS</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="15-索引失效却提升性能的典型情形">15. 索引失效却提升性能的典型情形</h2>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>原因</th>
+<th>建议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>小表（行数几千以下）</strong></td>
+<td>全表扫描顺序读硬盘，比随机读索引更快</td>
+<td>可不建索引，或使用 <code>FORCE INDEX</code> 让优化器走索引</td>
+</tr>
+<tr>
+<td><strong>查询返回大量行（&gt;30%）</strong></td>
+<td>索引查找 + 回表成本 &gt; 顺序全表扫描</td>
+<td>考虑 <strong>覆盖索引</strong>，或拆分查询</td>
+</tr>
+<tr>
+<td><strong>低基数列（布尔、枚举）</strong></td>
+<td>索引选择性低，查找大量相同值</td>
+<td>不为此类列单独建索引；合并到复合索引中提升过滤</td>
+</tr>
+<tr>
+<td><strong>写入频繁且更新索引列</strong></td>
+<td>索引维护开销大</td>
+<td>减少索引列、延迟写、使用 <strong>延迟更新</strong>（如异步批量）</td>
+</tr>
+<tr>
+<td>**优化器误估</td>
+<td>统计信息过时、数据分布不均**</td>
+<td>手动 <code>ANALYZE TABLE</code>、使用 <code>FORCE INDEX</code> 或 <code>USE INDEX</code> 调整计划</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="16-常用调优小技巧">16. 常用调优小技巧</h2>
+<ul>
+<li><strong>使用 <code>EXPLAIN</code> 检查执行计划</strong>：关注 <code>type</code>、<code>possible_keys</code>、<code>key</code>、<code>rows</code>、<code>Extra</code> 中的 “Using where”, “Using index”, “Using filesort”, “Using temporary”。</li>
+<li><strong>利用 <code>INFORMATION_SCHEMA.STATISTICS</code> 与 <code>ANALYZE</code></strong> 更新统计信息。</li>
+<li><strong>避免函数/表达式在 WHERE 左侧</strong>（除非已建函数索引）。</li>
+<li><strong>对经常 <code>GROUP BY</code> / <code>ORDER BY</code> 的列</strong>，使用 <strong>前缀索引</strong> 或 <strong>覆盖索引</strong>。</li>
+<li><strong>开启 <code>innodb_buffer_pool_size</code></strong> 至机器物理内存的 70% 左右，提升缓存命中率。</li>
+<li><strong>监控慢查询日志</strong>、<code>performance_schema</code>、<code>sys.schema_table_statistics</code>，定位热点。</li>
+</ul>
+<hr>
+<blockquote>
+<p><strong>核心结论</strong>：</p>
+<ul>
+<li><strong>最左前缀原则</strong>是复合索引的根本，任何破坏该原则的查询（范围、% 开头的 LIKE、OR/NOT 等）都会导致索引失效。</li>
+<li><strong>覆盖索引</strong>、<strong>函数索引</strong>、<strong>键值分页</strong>是提升查询效率的关键手段。</li>
+<li><strong>合理规划索引（列顺序、方向、基数）</strong>、<strong>维护统计信息</strong>、<strong>结合分区/缓存</strong>，才能在大表、高并发场景下保持 MySQL 的高性能。</li>
+</ul>
+</blockquote>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://yuzhupeng.top/myblogs/post/fen-xi-man-cha-xun-zong-jie/">
+                  <h3 class="post-title">
+                    分析慢查询 总结
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

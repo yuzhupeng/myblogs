@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Elasticsearch 和 Kibana 学习 | fishyue</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://yuzhupeng.top/myblogs//favicon.ico?v=1755503043926">
+<link rel="stylesheet" href="https://yuzhupeng.top/myblogs//styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="
+🧠 第一步：理解 Elasticsearch 是什么
+Elasticsearch 是一个分布式、开源的搜索和分析引擎，适合处理大规模的结构化或半结构化数据。它常用于：
+
+全文搜索
+日志分析（如配合 Filebeat、Logstash 使..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://yuzhupeng.top/myblogs/">
+        <img src="https://yuzhupeng.top/myblogs//images/avatar.png?v=1755503043926" class="site-logo">
+        <h1 class="site-title">fishyue</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/myblogs" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/myblogs/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/myblogs/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/myblogs/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/yuzhupeng" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      由奢入俭难，由俭入奢易
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/yuzhupeng" target="_blank">Fishyue</a> | <a class="rss" href="https://yuzhupeng.top/myblogs//atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">Elasticsearch 和 Kibana 学习</h2>
+            <div class="post-date">2025-05-21</div>
+            
+            <div class="post-content" v-pre>
+              <hr>
+<h2 id="第一步理解-elasticsearch-是什么">🧠 第一步：理解 Elasticsearch 是什么</h2>
+<p><strong>Elasticsearch</strong> 是一个分布式、开源的搜索和分析引擎，适合处理大规模的结构化或半结构化数据。它常用于：</p>
+<ul>
+<li>全文搜索</li>
+<li>日志分析（如配合 Filebeat、Logstash 使用）</li>
+<li>实时指标监控（如 APM）</li>
+<li>数据可视化（通常配合 Kibana）</li>
+</ul>
+<p>Elasticsearch 的核心是一个强大的 JSON 文档数据库，它支持复杂查询、高性能全文搜索和聚合分析。</p>
+<hr>
+<h2 id="第二步核心概念详解">🧱 第二步：核心概念详解</h2>
+<h3 id="1-文档document">1. <strong>文档（Document）</strong></h3>
+<ul>
+<li>Elasticsearch 的基本数据单位。</li>
+<li>一个文档是一个 JSON 对象。</li>
+<li>类似于数据库中的“行”。</li>
+</ul>
+<pre><code class="language-json">{
+  &quot;name&quot;: &quot;Audrey&quot;,
+  &quot;age&quot;: 28,
+  &quot;skills&quot;: [&quot;Python&quot;, &quot;Elasticsearch&quot;]
+}
+</code></pre>
+<h3 id="2-索引index">2. <strong>索引（Index）</strong></h3>
+<ul>
+<li>文档的集合，相当于数据库中的“表”。</li>
+<li>每个索引都有自己的名称和配置。</li>
+<li>文档必须属于某个索引。</li>
+</ul>
+<p>创建索引示例：</p>
+<pre><code class="language-bash">PUT /my_index
+</code></pre>
+<h3 id="3-映射mapping">3. <strong>映射（Mapping）</strong></h3>
+<ul>
+<li>定义索引中字段的结构（类似 SQL 的 schema）。</li>
+<li>包括字段的类型（如 <code>text</code>、<code>keyword</code>、<code>date</code>、<code>integer</code>）和属性（是否可被搜索、是否建立倒排索引等）。</li>
+</ul>
+<p>示例：</p>
+<pre><code class="language-bash">PUT /my_index
+{
+  &quot;mappings&quot;: {
+    &quot;properties&quot;: {
+      &quot;name&quot;: { &quot;type&quot;: &quot;text&quot; },
+      &quot;age&quot;: { &quot;type&quot;: &quot;integer&quot; },
+      &quot;join_date&quot;: { &quot;type&quot;: &quot;date&quot; }
+    }
+  }
+}
+</code></pre>
+<h3 id="4-类型type">4. <strong>类型（Type）</strong></h3>
+<ul>
+<li>老版本中一个索引可有多个“type”，但<strong>新版本已废弃 type 概念</strong>，每个索引只允许一个文档类型。</li>
+</ul>
+<hr>
+<h2 id="第三步基本操作使用-kibana-console">🔧 第三步：基本操作（使用 Kibana Console）</h2>
+<p>打开 Kibana Dev Tools，可以输入如下命令：</p>
+<h3 id="插入文档indexing">插入文档（Indexing）</h3>
+<pre><code class="language-bash">POST /my_index/_doc
+{
+  &quot;name&quot;: &quot;Alice&quot;,
+  &quot;age&quot;: 30,
+  &quot;skills&quot;: [&quot;Java&quot;, &quot;Elasticsearch&quot;]
+}
+</code></pre>
+<h3 id="查询文档search">查询文档（Search）</h3>
+<pre><code class="language-bash">GET /my_index/_search
+{
+  &quot;query&quot;: {
+    &quot;match&quot;: {
+      &quot;name&quot;: &quot;Alice&quot;
+    }
+  }
+}
+</code></pre>
+<h3 id="获取文档get">获取文档（Get）</h3>
+<pre><code class="language-bash">GET /my_index/_doc/1
+</code></pre>
+<h3 id="删除文档">删除文档</h3>
+<pre><code class="language-bash">DELETE /my_index/_doc/1
+</code></pre>
+<hr>
+<h2 id="第四步学习-kibana-可视化">📊 第四步：学习 Kibana 可视化</h2>
+<p>Kibana 是 Elasticsearch 的可视化界面，主要功能包括：</p>
+<ul>
+<li>数据可视化（创建图表、仪表盘）</li>
+<li>Dev Tools（发送 API 请求）</li>
+<li>Discover（浏览数据）</li>
+<li>管理索引模式（Index Pattern）</li>
+</ul>
+<h3 id="第一次使用建议">第一次使用建议：</h3>
+<ol>
+<li>在 Kibana 中创建 Index Pattern，如 <code>my_index*</code></li>
+<li>使用 Discover 浏览你插入的数据</li>
+<li>尝试创建一个可视化图表，如柱状图或折线图</li>
+</ol>
+<hr>
+<h2 id="第五步进阶建议">📚 第五步：进阶建议</h2>
+<p>等你掌握了基本操作后，建议继续学习以下内容：</p>
+<ul>
+<li><strong>布尔查询、过滤器查询</strong></li>
+<li><strong>聚合分析（Aggregations）</strong></li>
+<li><strong>全文检索 vs 精确匹配（<code>text</code> vs <code>keyword</code>）</strong></li>
+<li><strong>分析器（Analyzer）和分词（Tokenizer）</strong></li>
+<li><strong>索引生命周期管理（ILM）</strong></li>
+<li><strong>使用 Logstash/Beats 输入数据</strong></li>
+</ul>
+<hr>
+<h2 id="示例练习项目建议动手">🗂 示例练习项目（建议动手）</h2>
+<ul>
+<li>创建一个包含“用户简历信息”的索引，字段如 <code>name</code>、<code>age</code>、<code>skills</code>、<code>experience_years</code>。</li>
+<li>插入几条文档数据。</li>
+<li>用 match 查询技能为“Python”的用户。</li>
+<li>创建一个柱状图展示技能分布。</li>
+</ul>
+<hr>
+<p>要查询 <code>lili_goods</code> 索引查询 <code>lili_goods</code> 索引的数据，你可以通过 Kibana 的 <strong>Dev Tools</strong> 或直接使用 Elasticsearch 的 API。下面是几种常见的查询方式。</p>
+<h3 id="1-查询所有文档">1. <strong>查询所有文档</strong></h3>
+<p>如果你想查询 <code>lili_goods</code> 索引中的所有文档，可以使用如下的简单查询：</p>
+<pre><code class="language-bash">GET /lili_goods/_search
+</code></pre>
+<p>这会返回 <code>lili_goods</code> 索引中的所有文档，默认只返回前 10 条数据。</p>
+<h3 id="2-查询特定字段">2. <strong>查询特定字段</strong></h3>
+<p>如果你只想查询某个字段，或者用特定的关键词来查找数据，例如查找商品名称包含某个关键词的文档：</p>
+<pre><code class="language-bash">GET /lili_goods/_search
+{
+  &quot;query&quot;: {
+    &quot;match&quot;: {
+      &quot;product_name&quot;: &quot;some_keyword&quot;
+    }
+  }
+}
+</code></pre>
+<p>这里 <code>product_name</code> 是假设的字段名，<code>some_keyword</code> 是你要匹配的关键词。你可以根据实际的字段名和关键词进行修改。</p>
+<h3 id="3-分页查询获取更多文档">3. <strong>分页查询（获取更多文档）</strong></h3>
+<p>如果 <code>lili_goods</code> 索引有很多文档，默认返回 10 条，你可以使用 <code>size</code> 和 <code>from</code> 来控制分页查询。例如，获取第 2 页的 10 条记录：</p>
+<pre><code class="language-bash">GET /lili_goods/_search
+{
+  &quot;size&quot;: 10,
+  &quot;from&quot;: 10
+}
+</code></pre>
+<p>这会跳过前 10 条记录，返回第 11 到第 20 条记录。</p>
+<h3 id="4-查询特定条件的文档例如价格范围">4. <strong>查询特定条件的文档（例如价格范围）</strong></h3>
+<p>假设你想根据商品价格查询，以下是一个查询示例，查找价格在 50 到 100 之间的商品：</p>
+<pre><code class="language-bash">GET /lili_goods/_search
+{
+  &quot;query&quot;: {
+    &quot;range&quot;: {
+      &quot;price&quot;: {
+        &quot;gte&quot;: 50,
+        &quot;lte&quot;: 100
+      }
+    }
+  }
+}
+</code></pre>
+<p>这里 <code>price</code> 是字段名，<code>gte</code> 和 <code>lte</code> 表示价格的范围。</p>
+<h3 id="5-查询所有文档并返回特定字段">5. <strong>查询所有文档并返回特定字段</strong></h3>
+<p>如果你只关心某些字段，而不需要返回整个文档，可以使用 <code>_source</code> 来指定返回的字段：</p>
+<pre><code class="language-bash">GET /lili_goods/_search
+{
+  &quot;_source&quot;: [&quot;product_name&quot;, &quot;price&quot;, &quot;stock&quot;],
+  &quot;query&quot;: {
+    &quot;match_all&quot;: {}
+  }
+}
+</code></pre>
+<p>这会返回所有文档，但只包含 <code>product_name</code>、<code>price</code> 和 <code>stock</code> 字段。</p>
+<h3 id="6-查看索引的映射mapping">6. <strong>查看索引的映射（Mapping）</strong></h3>
+<p>如果你不知道 <code>lili_goods</code> 索引的字段结构，可以先查看它的映射，了解字段类型和配置：</p>
+<pre><code class="language-bash">GET /lili_goods/_mapping
+</code></pre>
+<p>这会返回索引的映射信息，告诉你各字段的数据类型及是否支持搜索。</p>
+<hr>
+<h3 id="小结">小结</h3>
+<p>通过这些查询，你可以灵活地查询 <code>lili_goods</code> 索引中的数据。如果你需要根据特定条件过滤、分页或指定字段等，使用 Elasticsearch 强大的查询语法进行操作。</p>
+<p>你可以先试试这些查询，如果有其他问题或更复杂的查询需求，随时告诉我！</p>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://yuzhupeng.top/myblogs/post/shu-ju-tuo-min/">
+                  <h3 class="post-title">
+                    数据脱敏
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

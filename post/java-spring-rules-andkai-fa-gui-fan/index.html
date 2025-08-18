@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>java spring rules &amp;开发规范 | fishyue</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://yuzhupeng.top/myblogs//favicon.ico?v=1755503043926">
+<link rel="stylesheet" href="https://yuzhupeng.top/myblogs//styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="globs: [&quot;/controller//.java&quot;, &quot;/api//.java&quot;]
+alwaysApply: true
+description: |
+RESTful API设计规范
+URL设计规..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://yuzhupeng.top/myblogs/">
+        <img src="https://yuzhupeng.top/myblogs//images/avatar.png?v=1755503043926" class="site-logo">
+        <h1 class="site-title">fishyue</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/myblogs" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/myblogs/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/myblogs/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/myblogs/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/yuzhupeng" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      由奢入俭难，由俭入奢易
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/yuzhupeng" target="_blank">Fishyue</a> | <a class="rss" href="https://yuzhupeng.top/myblogs//atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">java spring rules &amp;开发规范</h2>
+            <div class="post-date">2025-06-20</div>
+            
+            <div class="post-content" v-pre>
+              <p>globs: [&quot;<strong>/controller/</strong>/<em>.java&quot;, &quot;<strong>/api/</strong>/</em>.java&quot;]<br>
+alwaysApply: true<br>
+description: |<br>
+RESTful API设计规范</p>
+<h1 id="url设计规范">URL设计规范</h1>
+<ul>
+<li>使用名词复数形式表示资源集合：<code>/users</code>, <code>/orders</code></li>
+<li>使用资源ID标识特定资源：<code>/users/{id}</code>, <code>/orders/{id}</code></li>
+<li>使用子资源表示资源关系：<code>/users/{id}/orders</code></li>
+<li>使用查询参数进行筛选、排序和分页：<code>/users?role=admin&amp;sort=name&amp;page=1&amp;size=10</code></li>
+<li>避免在URL中使用动词，将动词映射到HTTP方法</li>
+</ul>
+<h1 id="http方法使用规范">HTTP方法使用规范</h1>
+<ul>
+<li>GET：获取资源（幂等）</li>
+<li>POST：创建资源</li>
+<li>PUT：全量更新资源（幂等）</li>
+<li>PATCH：部分更新资源</li>
+<li>DELETE：删除资源（幂等）</li>
+</ul>
+<h1 id="状态码使用规范">状态码使用规范</h1>
+<ul>
+<li>2xx：成功
+<ul>
+<li>200 OK：请求成功</li>
+<li>201 Created：资源创建成功</li>
+<li>204 No Content：请求成功但无返回内容（如删除操作）</li>
+</ul>
+</li>
+<li>4xx：客户端错误
+<ul>
+<li>400 Bad Request：请求参数错误</li>
+<li>401 Unauthorized：未认证</li>
+<li>403 Forbidden：权限不足</li>
+<li>404 Not Found：资源不存在</li>
+<li>409 Conflict：资源冲突</li>
+</ul>
+</li>
+<li>5xx：服务器错误
+<ul>
+<li>500 Internal Server Error：服务器内部错误</li>
+</ul>
+</li>
+</ul>
+<h1 id="响应体规范">响应体规范</h1>
+<h2 id="成功响应格式">成功响应格式</h2>
+<pre><code class="language-json">{
+  &quot;code&quot;: 200,
+  &quot;message&quot;: &quot;操作成功&quot;,
+  &quot;data&quot;: {
+    // 具体数据
+  },
+  &quot;timestamp&quot;: 1642406400000
+}
+</code></pre>
+<h2 id="错误响应格式">错误响应格式</h2>
+<pre><code class="language-json">{
+  &quot;code&quot;: 400,
+  &quot;message&quot;: &quot;参数错误&quot;,
+  &quot;errors&quot;: [
+    {
+      &quot;field&quot;: &quot;username&quot;,
+      &quot;message&quot;: &quot;用户名不能为空&quot;
+    }
+  ],
+  &quot;timestamp&quot;: 1642406400000
+}
+</code></pre>
+<h1 id="api版本管理">API版本管理</h1>
+<ul>
+<li>使用URL路径版本：<code>/v1/users</code>, <code>/v2/orders</code></li>
+<li>或使用请求头版本：<code>Accept: application/vnd.company.v1+json</code></li>
+</ul>
+<h1 id="安全规范">安全规范</h1>
+<ul>
+<li>使用HTTPS保护通信</li>
+<li>实施请求速率限制</li>
+<li>验证所有输入参数</li>
+<li>使用JWT或OAuth2进行身份验证</li>
+<li>避免在URL中包含敏感信息</li>
+</ul>
+<h1 id="文档规范">文档规范</h1>
+<ul>
+<li>使用Swagger/OpenAPI记录API</li>
+<li>明确记录请求参数、响应格式和可能的错误码</li>
+<li>提供示例请求和响应</li>
+<li>记录API变更历史</li>
+</ul>
+<p>globs:<br>
+[<br>
+&quot;<strong>/mapper/</strong>/<em>.java&quot;,<br>
+&quot;<strong>/repository/</strong>/</em>.java&quot;,<br>
+&quot;<strong>/dao/</strong>/*.java&quot;,<br>
+&quot;**/*Mapper.xml&quot;,<br>
+]<br>
+alwaysApply: true<br>
+description: |<br>
+数据库操作规范</p>
+<h1 id="数据库命名规范">数据库命名规范</h1>
+<h2 id="表命名">表命名</h2>
+<ul>
+<li>使用小写字母和下划线分隔单词（snake_case）</li>
+<li>使用复数形式表示实体集合：<code>users</code>, <code>orders</code></li>
+<li>使用前缀区分功能模块：<code>tb_user</code>, <code>tb_order</code></li>
+<li>中间表命名：<code>user_role</code>, <code>order_item</code></li>
+</ul>
+<h2 id="字段命名">字段命名</h2>
+<ul>
+<li>使用小写字母和下划线分隔单词（snake_case）</li>
+<li>主键统一命名为<code>id</code></li>
+<li>创建时间统一命名为<code>create_time</code></li>
+<li>更新时间统一命名为<code>update_time</code></li>
+<li>外键命名格式：<code>表名_id</code>，如<code>user_id</code>, <code>order_id</code></li>
+<li>状态字段统一命名为<code>status</code></li>
+<li>逻辑删除字段统一命名为<code>is_deleted</code></li>
+</ul>
+<h1 id="数据库设计规范">数据库设计规范</h1>
+<ul>
+<li>必须包含主键，优先使用自增ID或雪花ID</li>
+<li>每个表必须包含创建时间和更新时间</li>
+<li>考虑使用逻辑删除而非物理删除</li>
+<li>对常用查询字段添加索引</li>
+<li>所有表必须设定字符集为utf8mb4</li>
+<li>所有表和字段必须添加注释</li>
+</ul>
+<h1 id="mybatismybatis-plus使用规范">MyBatis/MyBatis-Plus使用规范</h1>
+<h2 id="mapper接口">Mapper接口</h2>
+<ul>
+<li>继承BaseMapper<Entity>以获取基础CRUD方法</li>
+<li>自定义方法使用@Param注解标注参数</li>
+<li>使用注解或XML管理SQL语句（推荐XML方式）</li>
+</ul>
+<h2 id="xml映射文件">XML映射文件</h2>
+<ul>
+<li>XML文件应与Mapper接口同名</li>
+<li>使用resultMap映射复杂对象关系</li>
+<li>大型复杂查询SQL应放在XML中而非注解中</li>
+<li>灵活使用动态SQL（if, choose, where, foreach等）</li>
+</ul>
+<h1 id="sql编写规范">SQL编写规范</h1>
+<ul>
+<li>关键字使用大写：SELECT, INSERT, UPDATE, DELETE</li>
+<li>表名、字段名使用小写</li>
+<li>复杂查询应当拆分为多行，提高可读性</li>
+<li>避免使用SELECT *，明确指定查询字段</li>
+<li>使用参数化查询，避免SQL注入</li>
+<li>大数据量查询应分页处理</li>
+<li>JOIN查询应谨慎使用，避免性能问题</li>
+<li>使用COUNT(*)而非COUNT(1)或COUNT(字段名)</li>
+</ul>
+<h1 id="事务管理">事务管理</h1>
+<ul>
+<li>合理使用@Transactional注解</li>
+<li>明确指定隔离级别和传播行为</li>
+<li>避免长事务</li>
+<li>避免嵌套事务可能导致的问题</li>
+<li>合理配置事务超时时间</li>
+</ul>
+<h1 id="数据安全">数据安全</h1>
+<ul>
+<li>敏感数据应加密存储</li>
+<li>重要操作应记录审计日志</li>
+<li>禁止直接拼接SQL语句</li>
+<li>生产环境禁止使用高权限数据库账号</li>
+<li>数据库访问密码应加密存储</li>
+</ul>
+<p>globs: &quot;**/*.java&quot;<br>
+alwaysApply: true<br>
+description: |<br>
+Java项目Git规范</p>
+<h1 id="提交规范">提交规范</h1>
+<h2 id="提交信息格式">提交信息格式</h2>
+<ul>
+<li>标准格式：<code>&lt;类型&gt;(&lt;范围&gt;): &lt;主题&gt;</code></li>
+<li>类型：feat(新功能), fix(修复), docs(文档), style(格式), refactor(重构), test(测试), chore(其他)</li>
+<li>范围：可选，表示影响的模块或功能</li>
+<li>主题：简洁明了地描述本次提交的内容</li>
+</ul>
+<h2 id="提交示例">提交示例</h2>
+<ul>
+<li><code>feat(user): 添加用户登录功能</code></li>
+<li><code>fix(order): 修复订单计算价格错误</code></li>
+<li><code>docs: 更新API文档</code></li>
+<li><code>style: 格式化代码</code></li>
+<li><code>refactor(payment): 重构支付模块</code></li>
+</ul>
+<h1 id="分支管理">分支管理</h1>
+<h2 id="分支命名">分支命名</h2>
+<ul>
+<li>master/main：主分支，用于生产环境</li>
+<li>develop：开发分支，用于开发环境</li>
+<li>feature/*：功能分支，用于开发新功能</li>
+<li>bugfix/*：错误修复分支，用于修复问题</li>
+<li>release/*：发布分支，用于版本发布</li>
+<li>hotfix/*：热修复分支，用于紧急修复生产环境问题</li>
+</ul>
+<h2 id="分支示例">分支示例</h2>
+<ul>
+<li><code>feature/user-login</code></li>
+<li><code>bugfix/order-calculation</code></li>
+<li><code>release/v1.2.0</code></li>
+<li><code>hotfix/critical-security-issue</code></li>
+</ul>
+<h1 id="git工作流">Git工作流</h1>
+<h2 id="基本流程">基本流程</h2>
+<ol>
+<li>从develop分支创建功能分支</li>
+<li>提交功能开发内容</li>
+<li>完成功能开发后，向develop分支提交合并请求</li>
+<li>经过代码审查后合并到develop分支</li>
+<li>发布时，从develop分支创建release分支</li>
+<li>经过测试后，将release分支合并到master和develop分支</li>
+</ol>
+<h1 id="java项目特殊规范">Java项目特殊规范</h1>
+<ul>
+<li>不要提交编译生成的文件（target/目录）</li>
+<li>不要提交IDE配置文件（.idea/，.vscode/等，除非是团队共享配置）</li>
+<li>不要提交敏感信息（密码，API密钥等）</li>
+<li>对于大文件或二进制文件，考虑使用Git LFS</li>
+</ul>
+<p>globs:<br>
+alwaysApply: true<br>
+description: |<br>
+Java Spring Boot项目规范</p>
+<h1 id="开发规范">开发规范</h1>
+<ul>
+<li>遵循Java代码风格和命名约定</li>
+<li>始终使用Spring Boot最佳实践</li>
+<li>保持代码简洁、模块化和可测试</li>
+<li>正确处理异常并提供有意义的错误消息</li>
+</ul>
+<h1 id="代码规范">代码规范</h1>
+<h2 id="命名规范">命名规范</h2>
+<ul>
+<li>类名：使用PascalCase（例如UserController, OrderService）</li>
+<li>方法和变量：使用camelCase（例如findUserById, isOrderValid）</li>
+<li>常量：使用ALL_CAPS（例如MAX_RETRY_ATTEMPTS, DEFAULT_PAGE_SIZE）</li>
+<li>接口名称：使用PascalCase并可以以I作为前缀（例如IUserService）</li>
+<li>抽象类名称：使用Abstract作为前缀（例如AbstractUserService）</li>
+</ul>
+<h2 id="包结构">包结构</h2>
+<ul>
+<li>controller：存放控制器类</li>
+<li>service：存放服务接口</li>
+<li>serviceimpl：存放服务实现类</li>
+<li>mapper：存放MyBatis映射接口</li>
+<li>entity/vo/dto：存放数据模型</li>
+<li>config：存放配置类</li>
+<li>util：存放工具类</li>
+</ul>
+<h2 id="spring-boot最佳实践">Spring Boot最佳实践</h2>
+<ul>
+<li>使用构造函数注入而不是字段注入</li>
+<li>合理使用Spring的注解（@RestController, @Service等）</li>
+<li>使用统一的异常处理（@ControllerAdvice, @ExceptionHandler）</li>
+<li>API设计遵循RESTful原则</li>
+<li>将配置参数外部化到application.properties/application.yml</li>
+</ul>
+<h2 id="数据库访问">数据库访问</h2>
+<ul>
+<li>使用MyBatis-Plus进行数据库操作</li>
+<li>编写清晰的SQL或使用ORM映射</li>
+<li>适当使用事务管理（@Transactional）</li>
+<li>避免N+1查询问题</li>
+</ul>
+<h2 id="安全最佳实践">安全最佳实践</h2>
+<ul>
+<li>使用Spring Security进行身份验证和授权</li>
+<li>实施适当的输入验证</li>
+<li>对敏感数据进行加密</li>
+<li>使用JWT进行无状态身份验证</li>
+</ul>
+<h2 id="代码质量">代码质量</h2>
+<ul>
+<li>添加适当的日志记录（使用SLF4J）</li>
+<li>编写单元测试（JUnit）和集成测试</li>
+<li>遵循SOLID原则</li>
+<li>使用代码格式化工具和静态分析工具</li>
+</ul>
+<h2 id="性能考虑">性能考虑</h2>
+<ul>
+<li>合理使用缓存（Redis）</li>
+<li>优化数据库查询</li>
+<li>使用异步处理（@Async）处理长时间运行的任务</li>
+<li>监控应用程序性能</li>
+</ul>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://yuzhupeng.top/myblogs/post/vobopododto-de-qu-bie/">
+                  <h3 class="post-title">
+                    VO，BO，PO，DO，DTO的区别
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

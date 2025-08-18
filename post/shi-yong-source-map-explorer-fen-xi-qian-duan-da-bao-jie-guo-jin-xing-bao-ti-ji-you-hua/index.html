@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>使用 source-map-explorer 分析前端打包结果进行包体积优化 | fishyue</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://yuzhupeng.top/myblogs//favicon.ico?v=1755503043926">
+<link rel="stylesheet" href="https://yuzhupeng.top/myblogs//styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="使用 source-map-explorer 分析前端打包结果进行包体积优化
+目录
+[[隐藏](javascript:content_index_toggleToc())]
+
+
+1 使用 source-map-explorer
+
+1.1 构..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://yuzhupeng.top/myblogs/">
+        <img src="https://yuzhupeng.top/myblogs//images/avatar.png?v=1755503043926" class="site-logo">
+        <h1 class="site-title">fishyue</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/myblogs" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/myblogs/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/myblogs/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/myblogs/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/yuzhupeng" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      由奢入俭难，由俭入奢易
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/yuzhupeng" target="_blank">Fishyue</a> | <a class="rss" href="https://yuzhupeng.top/myblogs//atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">使用 source-map-explorer 分析前端打包结果进行包体积优化</h2>
+            <div class="post-date">2025-06-03</div>
+            
+            <div class="post-content" v-pre>
+              <h1 id="使用-source-map-explorer-分析前端打包结果进行包体积优化">使用 source-map-explorer 分析前端打包结果进行包体积优化</h1>
+<p>目录</p>
+<p>[[隐藏](javascript:content_index_toggleToc())]</p>
+<ul>
+<li>
+<p><a href="https://lzw.me/a/source-map-explorer.html#1%20%E4%BD%BF%E7%94%A8%20source-map-explorer" title="1 使用 source-map-explorer">1 使用 source-map-explorer</a></p>
+<ul>
+<li><a href="https://lzw.me/a/source-map-explorer.html#1.1%20%E6%9E%84%E5%BB%BA%E8%BE%93%E5%87%BA%E9%A1%B9%E7%9B%AE" title="1.1 构建输出项目">1.1 构建输出项目</a></li>
+<li><a href="https://lzw.me/a/source-map-explorer.html#1.2%20%E4%BD%BF%E7%94%A8%20source-map-explorer%20%E5%88%86%E6%9E%90%E7%A4%BA%E4%BE%8B" title="1.2 使用 source-map-explorer 分析示例">1.2 使用 source-map-explorer 分析示例</a></li>
+</ul>
+</li>
+<li>
+<p><a href="https://lzw.me/a/source-map-explorer.html#2%20source-map-explorer%20%E5%8A%9F%E8%83%BD%E5%8F%82%E6%95%B0" title="2 source-map-explorer 功能参数">2 source-map-explorer 功能参数</a></p>
+</li>
+<li>
+<p><a href="https://lzw.me/a/source-map-explorer.html#3%20%E6%9B%B4%E5%A4%9A%E5%8F%82%E8%80%83" title="3 更多参考">3 更多参考</a></p>
+</li>
+</ul>
+<p>对于前端打包构建生产环境的产出内容，特别是在采用了 Vue.js、React 或 Angular 等主流框架的时候，其体积达数 M 是很常见的现象。</p>
+<p>当希望对包体积进行优化分析时，或许你知道可以选择使用 <code>webpack-bundle-analyzer</code>， 其实 <code>source-map-explorer</code> 也是个不错的选择。当打包输出结果生成了 sourceMap，<code>source-map-explorer</code> 就可以据此分析出每个模块所占用的体积。而且它不仅限于 JavaScript，对于 Css 预处理器 LESS 和 Sass 来说同样适用。</p>
+<h2 id="1-使用-source-map-explorer">1 使用 <code>source-map-explorer</code></h2>
+<h3 id="11-构建输出项目">1.1 构建输出项目</h3>
+<p>首先对前端项目构建输出用于生产环境的内容，注意开启 sourceMap 的输出。</p>
+<h3 id="12-使用-source-map-explorer-分析示例">1.2 使用 <code>source-map-explorer</code> 分析示例</h3>
+<p><code>source-map-explorer</code> 的用法相当简单。首先全局安装 <code>source-map-explorer</code>：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>npm i -g ``source``-map-explorer</code></td>
+</tr>
+</tbody>
+</table>
+<p>然后进入打包输出内容目录，执行如下命令（示例中的 为具体产出结果的 hash 值占位符）：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>source``-map-explorer main.&lt;``hash``&gt;.js main.&lt;``hash``&gt;.js.map</code></td>
+</tr>
+</tbody>
+</table>
+<p>你也可以不全局安装它，直接使用 npx 执行：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>npx ``source``-map-explorer main.&lt;``hash``&gt;.js main.&lt;``hash``&gt;.js.map</code></td>
+</tr>
+</tbody>
+</table>
+<p>如一切正常，该命令会在临时目录生成 html 文件分析结果，并自动打开浏览器进行显示。示例：</p>
+<figure data-type="image" tabindex="1"><a href="https://lzw.me/wp-content/uploads/2020/04/source-map-explorer.png"><img src="https://lzw.me/wp-content/uploads/2020/04/source-map-explorer.png" alt="" loading="lazy"></a></figure>
+<p>以上为单文件分析的简单示例。也可以使用通配符方式，如：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>npx ``source``-map-explorer dist``/prod/``*.js</code></td>
+</tr>
+</tbody>
+</table>
+<p>我们可以将该命令配置到 <code>package.json</code> 的 <code>scripts</code> 脚本中：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>12345</td>
+<td><code>{``  ``&quot;scripts&quot;``: {``     ``&quot;analyze&quot;``: ``&quot;npx source-map-explorer dist/prod/*.js&quot;``,``  ``}``}</code></td>
+</tr>
+</tbody>
+</table>
+<p>在完打包完成之后，执行 <code>npm run analyze</code> 即可得到分析结果。</p>
+<h2 id="2-source-map-explorer-功能参数">2 <code>source-map-explorer</code> 功能参数</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>123456789101112131415161718192021222324252627282930</td>
+<td><code>Analyze and debug space usage through ``source</code> <code>maps.``Usage:``source``-map-explorer script.js [script.js.map] [--json [result.json] | --html [result.html] | --tsv [result.csv]] [-m | --only-mapped] [--exclude-``source``-map] [--no-bor                                                                                                         der-checks] [--``gzip``] [--``sort``] [--replace=BEFORE_1 BEFORE_2 --with=AFTER_1 AFTER_2] [--no-root] [--coverage coverage.json] [--version] [--help | -h]</code> <code>Output:``  ``--json  If filename specified save output as JSON to specified ``file</code> <code>otherwise output to stdout.  [string]``  ``--tsv   If filename specified save output as TSV to specified ``file</code> <code>otherwise output to stdout.  [string]``  ``--html  If filename specified save output as HTML to specified ``file</code> <code>otherwise output to stdout rather than opening a browser.  [string]</code> <code>Replace:``  ``--replace  Apply a simple ``find``/replace</code> <code>on ``source</code> <code>file</code> <code>names. This can be used to fix some oddities with paths that appear ``in</code> <code>the ``source</code> <code>map generation process. Acce                                                                                                         pts regular expressions.  [array]``  ``--with     See --replace.  [array]</code> <code>Options:``  ``--version             Show version number  [boolean]``  ``--only-mapped, -m     Exclude ``&quot;unmapped&quot;</code> <code>bytes from the output. This will result ``in</code> <code>total counts ``less</code> <code>than the ``file</code> <code>size  [boolean]``  ``--exclude-``source``-map  Exclude ``source</code> <code>map comment size from output  [boolean]``  ``--no-root             To simplify the visualization, ``source``-map-explorer will remove any prefix shared by all sources. If you wish to disable this behavior, ``set</code> <code>--n                                                                                                         o-root.  [boolean]``  ``--no-border-checks    Disable invalid mapping column``/line</code> <code>checks.  [boolean]``  ``--coverage            If the path to a valid a chrome code coverage JSON ``export</code> <code>is supplied, the tree map will be colorized according to ``which</code> <code>percentage of the mod                                                                                                         ules code was executed  [string]``  ``--``gzip</code>                <code>Calculate ``gzip</code> <code>size. It also sets onlyMapped flag  [boolean]``  ``--``sort</code>                <code>Sort filenames  [boolean]``  ``-h, --help            Show help  [boolean]</code> <code>Examples:``  ``source``-map-explorer script.js script.js.map       Explore bundle``  ``source``-map-explorer script.js                     Explore bundle with inline ``source</code> <code>map``  ``source``-map-explorer dist``/js/``*.*                   Explore all bundles inside dist``/js</code> <code>folder``  ``source``-map-explorer script.js --tsv               Explore and output result as TSV to stdout``  ``source``-map-explorer script.js --json result.json  Explore and save result as JSON to the ``file</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-更多参考">3 更多参考</h2>
+<ul>
+<li>https://www.npmjs.com/package/source-map-explorer</li>
+<li>https://www.npmjs.com/package/webpack-bundle-analyzer</li>
+</ul>
+<!-- YARPP Thumbnails -->
+<h3 id=""></h3>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://yuzhupeng.top/myblogs/post/net-wei-fu-wu-jia-gou-de-yan-bian/">
+                  <h3 class="post-title">
+                    NET微服务架构的演变
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

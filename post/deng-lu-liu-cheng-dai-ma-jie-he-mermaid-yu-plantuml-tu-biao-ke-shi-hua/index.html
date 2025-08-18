@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>登录流程代码，结合 Mermaid 与 PlantUML 图表可视化 | fishyue</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://yuzhupeng.top/myblogs//favicon.ico?v=1755503043926">
+<link rel="stylesheet" href="https://yuzhupeng.top/myblogs//styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="
+企业统一登录流程图文解析（含 Mermaid 与 PlantUML 可视化）
+本文结合前后端实现代码，对一个集成了拼图验证码与AD域认证的账号密码登录流程进行可视化说明。我们分别使用 Mermaid 与 PlantUML 进行时序图与流程..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://yuzhupeng.top/myblogs/">
+        <img src="https://yuzhupeng.top/myblogs//images/avatar.png?v=1755503043926" class="site-logo">
+        <h1 class="site-title">fishyue</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/myblogs" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/myblogs/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/myblogs/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/myblogs/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/yuzhupeng" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      由奢入俭难，由俭入奢易
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/yuzhupeng" target="_blank">Fishyue</a> | <a class="rss" href="https://yuzhupeng.top/myblogs//atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">登录流程代码，结合 Mermaid 与 PlantUML 图表可视化</h2>
+            <div class="post-date">2025-06-04</div>
+            
+            <div class="post-content" v-pre>
+              <hr>
+<h1 id="企业统一登录流程图文解析含-mermaid-与-plantuml-可视化">企业统一登录流程图文解析（含 Mermaid 与 PlantUML 可视化）</h1>
+<p>本文结合前后端实现代码，对一个集成了<strong>拼图验证码</strong>与<strong>AD域认证</strong>的账号密码登录流程进行可视化说明。我们分别使用 <strong>Mermaid</strong> 与 <strong>PlantUML</strong> 进行时序图与流程图的绘制，以便于开发团队理解整体业务流程。</p>
+<hr>
+<h2 id="登录流程概览">🧩 登录流程概览</h2>
+<p>用户通过前端页面提交账号密码，系统先进行拼图验证，再根据是否为系统已有用户决定走本地校验或 AD 域认证，并最终完成 token 的生成与登录跳转。</p>
+<hr>
+<h2 id="mermaid-流程图简洁结构">📊 Mermaid 流程图（简洁结构）</h2>
+<pre><code class="language-mermaid">flowchart TD
+  A[用户点击登录按钮] --&gt; B[handleSubmit 调用]
+  B --&gt; C[初始化拼图验证码 verifyInit]
+  C --&gt; D[用户验证通过]
+  D --&gt; E[调用 API: /userLogin]
+  E --&gt; F[后端接收参数: username, password, truthpassword, uuid]
+
+  F --&gt; G{系统中是否存在用户？}
+  G -- 否 --&gt; H[获取 accessToken]
+  H --&gt; I[调用 AD 域认证接口]
+  I --&gt; J{AD认证是否通过？}
+  J -- 否 --&gt; K[返回错误：AD认证失败]
+  J -- 是 --&gt; L[调用 AD 接口获取员工信息]
+  L --&gt; M{是否查到员工信息？}
+  M -- 否 --&gt; N[根据工号再次获取员工信息]
+  N --&gt; O[注册为新用户]
+  M -- 是 --&gt; O
+
+  G -- 是 --&gt; P[本地校验密码]
+  P --&gt; Q{密码验证是否通过？}
+  Q -- 是 --&gt; R[登录成功]
+  Q -- 否 --&gt; S[尝试 AD 认证]
+  S --&gt; T{AD认证是否通过？}
+  T -- 否 --&gt; U[返回错误：密码错误]
+  T -- 是 --&gt; V[更新本地密码]
+
+  O --&gt; R
+  V --&gt; R
+  R --&gt; W[创建 Token]
+  W --&gt; X[返回 Token 到前端]
+  X --&gt; Y[前端存储 Token 并跳转首页]
+</code></pre>
+<blockquote>
+<p>✅ 建议使用支持 Mermaid 的 Markdown 编辑器（如 Typora、Obsidian、VS Code 插件）进行渲染。<br>
+<img src="https://yuzhupeng.top/myblogs//post-images/1749008217718.png" alt="" loading="lazy"></p>
+</blockquote>
+<hr>
+<h2 id="plantuml-时序图完整调用关系">⏱ PlantUML 时序图（完整调用关系）</h2>
+<pre><code class="language-plantuml">@startuml
+actor 用户
+participant &quot;前端 Login.vue&quot; as Frontend
+participant &quot;后端 Controller&quot; as Controller
+participant &quot;MemberService&quot; as Service
+participant &quot;ADMemberSyncService&quot; as ADService
+participant &quot;TokenService&quot; as TokenService
+
+用户 -&gt; Frontend: 输入用户名/密码\n点击登录
+Frontend -&gt; Frontend: verify.init() 验证码校验
+Frontend -&gt; 用户: 展示拼图验证码
+用户 -&gt; Frontend: 验证通过
+Frontend -&gt; Controller: POST /userLogin\nusername + password + truthpassword + uuid
+
+Controller -&gt; Service: usernameLogin(username, password, truthpassword)
+
+alt 用户不存在
+  Service -&gt; ADService: getAccessToken()
+  Service -&gt; ADService: adAuthenticate(username, truthpassword, accessToken)
+  alt 认证失败
+    ADService --&gt; Service: false
+    Service -&gt; Controller: 返回错误
+  else 认证成功
+    Service -&gt; ADService: getEmployeeInfo(username, accessToken)
+    alt 未获取成功
+      Service -&gt; ADService: getEmployeeInfoByWorkNumber(username)
+    end
+    Service -&gt; Service: 创建新用户(member)
+  end
+else 用户存在
+  Service -&gt; Service: 校验本地密码
+  alt 密码正确
+    Service -&gt; TokenService: 创建 token
+  else 密码错误
+    Service -&gt; ADService: getAccessToken()
+    Service -&gt; ADService: adAuthenticate(username, truthpassword, accessToken)
+    alt AD认证失败
+      Service -&gt; Controller: 返回错误
+    else AD认证成功
+      Service -&gt; Service: 更新本地密码
+      Service -&gt; TokenService: 创建 token
+    end
+  end
+end
+
+TokenService --&gt; Service: 返回 token
+Service --&gt; Controller: 返回 accessToken/refreshToken
+Controller --&gt; Frontend: 登录成功
+Frontend -&gt; 用户: 跳转首页
+@enduml
+</code></pre>
+<blockquote>
+<p>✅ 可通过 <a href="https://www.plantuml.com/plantuml/">PlantUML Live</a> 或 VS Code 插件进行可视化。<br>
+<img src="https://yuzhupeng.top/myblogs//post-images/1749008228294.png" alt="" loading="lazy"><br>
+<img src="https://yuzhupeng.top/myblogs//post-images/1749008234309.png" alt="" loading="lazy"></p>
+</blockquote>
+<hr>
+<h2 id="总结">🔎 总结</h2>
+<ul>
+<li>登录流程中使用了 <strong>双重校验机制</strong>：先本地密码校验，再补偿性调用 AD 域认证。</li>
+<li>用户不存在时，也能通过 AD 信息自动建档，做到「无缝引导入系统」。</li>
+<li>图表工具如 <strong>Mermaid</strong> 更适合概览类展示，<strong>PlantUML</strong> 则适合详细链路跟踪。</li>
+</ul>
+<hr>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://yuzhupeng.top/myblogs/post/umljian-mo-yu-she-ji/">
+                  <h3 class="post-title">
+                    `uml`建模与设计
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

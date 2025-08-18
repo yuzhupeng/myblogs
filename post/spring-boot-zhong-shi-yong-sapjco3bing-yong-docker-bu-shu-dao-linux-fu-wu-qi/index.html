@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>spring boot中使用sapjco3，并用docker部署到Linux服务器 | fishyue</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://yuzhupeng.top/myblogs//favicon.ico?v=1755503043926">
+<link rel="stylesheet" href="https://yuzhupeng.top/myblogs//styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="[在spring boot中使用sapjco3，并用docker部署到Linux服务器] &quot;发布于 2025-07-24 15:26&quot;)
+一、在windows中的配置
+二、linux的配置
+三、spring boot项目..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://yuzhupeng.top/myblogs/">
+        <img src="https://yuzhupeng.top/myblogs//images/avatar.png?v=1755503043926" class="site-logo">
+        <h1 class="site-title">fishyue</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/myblogs" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/myblogs/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/myblogs/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/myblogs/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/yuzhupeng" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      由奢入俭难，由俭入奢易
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/yuzhupeng" target="_blank">Fishyue</a> | <a class="rss" href="https://yuzhupeng.top/myblogs//atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">spring boot中使用sapjco3，并用docker部署到Linux服务器</h2>
+            <div class="post-date">2025-07-24</div>
+            
+            <div class="post-content" v-pre>
+              <h1 id="在spring-boot中使用sapjco3并用docker部署到linux服务器-发布于-2025-07-24-1526">[在spring boot中使用sapjco3，并用docker部署到Linux服务器] &quot;发布于 2025-07-24 15:26&quot;)</h1>
+<p>一、在windows中的配置</p>
+<p>二、linux的配置</p>
+<p>三、spring boot项目构建</p>
+<p>sapjco3包含很多个操作系统版本，不同的操作系统需要使用不同的配置文件和配置方式，不过sapjco3.jar是可以通用的。</p>
+<figure data-type="image" tabindex="1"><img src="https://img2020.cnblogs.com/blog/1543878/202008/1543878-20200819105934366-640195848.png" alt="" loading="lazy"></figure>
+<h1 id="一-在windows中的配置">一、在windows中的配置</h1>
+<p>windows中需要的文件主要包括：</p>
+<p>sapjco3.dll</p>
+<p>sapjco3.pdb</p>
+<p>sapjco3.jar</p>
+<h2 id="1-sapjco3dll文件">1、sapjco3.dll文件</h2>
+<p>32位系统</p>
+<p>将 sapjco3.dll 加入到c:/windows/system32/目录 或者 将 sapjco3.dll 加入到 JDK/bin 目录下；</p>
+<p>64位系统</p>
+<p>将 sapjco3.dll 加入到c:/windows/SysWOW64/目录 或者 将 sapjco3.dll 加入到 JDK/bin 目录下；</p>
+<p>64位机可以直接将sapjco3.dll放在&quot;C:\Windows\System32&quot;目录下，这样以后不必针对具体的应用来配置它；</p>
+<figure data-type="image" tabindex="2"><img src="https://img2020.cnblogs.com/blog/1543878/202008/1543878-20200819110146552-1363688094.png" alt="" loading="lazy"></figure>
+<p>上面的配置是为了将它放在系统环境变量path可以找到的地方，所以也可以直接把sapjco3.dll文件所在的位置，配置到系统环境变量path下面；</p>
+<h2 id="2-sapjco3pdb文件">2、sapjco3.pdb文件</h2>
+<p>在springboot中使用sapjco3可以不用配置sapjco3.pdb，如果在kettle中需要调用sap的接口，则需要把sapjco3.pdb放在kettle的根目录&quot;${KETTLE_HOME}/&quot;下面；</p>
+<h2 id="3-sapjco3jar文件">3、sapjco3.jar文件</h2>
+<p>这个文件就是java调用sap的主要api，包含许多方法，如连接sap、获取接口参数、设置接口参数和获取返回参数等；</p>
+<p>这里<strong>推荐将sapjco3.jar放在项目的lib目录下面，然后在项目打包的时候，将本地依赖的jar包打包到项目jar中</strong>；</p>
+<p>也可以将sapjco3.jar放在${JAVA_HOME}/lib目录下或者放在其他目录并将该目录下的sapjco3.jar添加到系统环境变量CLASSPATH下面；</p>
+<p>也可以在pom.xml中引入sapjco3.jar依赖，这样项目打包的时候会将sapjco3.0.14.jar打包到项目jar里面，但是这样sapjco3.jar文件是带有版本后缀的，在项目部署的时候，会启动失败，报错：It is not allowed to rename or repackage the original archive “sapjco3.jar”。需要手动进入jar包，将sapjco3.0.14.jar名称修改为sapjco3.jar；</p>
+<p>[<img src="//assets.cnblogs.com/images/copycode.gif" alt="复制代码" loading="lazy">](javascript:void(0); &quot;复制代码&quot;)</p>
+<pre><code>&lt;!-- https://mvnrepository.com/artifact/com.sap.conn.jco/sapjco3 --&gt;
+&lt;dependency&gt;
+        &lt;groupId&gt;com.sap.conn.jco&lt;/groupId&gt;
+        &lt;artifactId&gt;sapjco3&lt;/artifactId&gt;
+        &lt;version&gt;3.0.14&lt;/version&gt;
+        &lt;scope&gt;test&lt;/scope&gt;
+&lt;/dependency&gt;
+</code></pre>
+<p>[<img src="//assets.cnblogs.com/images/copycode.gif" alt="复制代码" loading="lazy">](javascript:void(0); &quot;复制代码&quot;)</p>
+<p>还有一种方式是使用maven的install命令将sapjco3.jar安装到本地仓库，然后在项目中引入依赖，但是切记jar包不能后缀版本号；</p>
+<hr>
+<h1 id="二-linux的配置">二、linux的配置</h1>
+<p>linux需要的文件包括：</p>
+<p>libsapjco3.so</p>
+<p>sapjco3.jar</p>
+<p>其中jar包sapjco3.jar与windows版的可以通用；重点是将libsapjco3.so文件配置到linux的jre/lib运行时环境中或者项目可以加载到libsapjco3.so的其他位置；</p>
+<h2 id="1-linux系统">1、Linux系统：</h2>
+<p>1)将压缩文件解压到某个目录下面，比如/home/appuser/sapjco3/ 下面：</p>
+<blockquote>
+<p>tar -zxvf sapjco3-linuxx86_64-3.0.17.tgz -C /home/appuser/sapjco3</p>
+</blockquote>
+<p>2)配置环境变量</p>
+<blockquote>
+<p>vim /etc/profile</p>
+</blockquote>
+<p>在配置文件内加上下面的内容：</p>
+<blockquote>
+<p>export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/home/appuser/sapjco3</p>
+<p>export CLASSPATH=.:<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mrow><mi>J</mi><mi>A</mi><mi>V</mi><mi>A</mi><mi mathvariant="normal">_</mi><mi>H</mi><mi>O</mi><mi>M</mi><mi>E</mi></mrow><mi mathvariant="normal">/</mi><mi>l</mi><mi>i</mi><mi>b</mi><mo>:</mo></mrow><annotation encoding="application/x-tex">{JAVA\_HOME}/lib:</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.06em;vertical-align:-0.31em;"></span><span class="mord"><span class="mord mathdefault" style="margin-right:0.09618em;">J</span><span class="mord mathdefault">A</span><span class="mord mathdefault" style="margin-right:0.22222em;">V</span><span class="mord mathdefault">A</span><span class="mord" style="margin-right:0.02778em;">_</span><span class="mord mathdefault" style="margin-right:0.08125em;">H</span><span class="mord mathdefault" style="margin-right:0.02778em;">O</span><span class="mord mathdefault" style="margin-right:0.10903em;">M</span><span class="mord mathdefault" style="margin-right:0.05764em;">E</span></span><span class="mord">/</span><span class="mord mathdefault" style="margin-right:0.01968em;">l</span><span class="mord mathdefault">i</span><span class="mord mathdefault">b</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">:</span></span></span></span>{LD_LIBRARY_PATH}/sapjco3.jar</p>
+</blockquote>
+<p>或者</p>
+<p>先将文件libsapjco3.so复制到${JAVA_HOME}/jre/lib/amd64/server文件夹下</p>
+<blockquote>
+<p>export LD_LIBRARY_PATH=<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mrow><mi>L</mi><mi>D</mi><mi mathvariant="normal">_</mi><mi>L</mi><mi>I</mi><mi>B</mi><mi>R</mi><mi>A</mi><mi>R</mi><mi>Y</mi><mi mathvariant="normal">_</mi><mi>P</mi><mi>A</mi><mi>T</mi><mi>H</mi></mrow><mo>:</mo></mrow><annotation encoding="application/x-tex">{LD\_LIBRARY\_PATH}:</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.99333em;vertical-align:-0.31em;"></span><span class="mord"><span class="mord mathdefault">L</span><span class="mord mathdefault" style="margin-right:0.02778em;">D</span><span class="mord" style="margin-right:0.02778em;">_</span><span class="mord mathdefault">L</span><span class="mord mathdefault" style="margin-right:0.07847em;">I</span><span class="mord mathdefault" style="margin-right:0.05017em;">B</span><span class="mord mathdefault" style="margin-right:0.00773em;">R</span><span class="mord mathdefault">A</span><span class="mord mathdefault" style="margin-right:0.00773em;">R</span><span class="mord mathdefault" style="margin-right:0.22222em;">Y</span><span class="mord" style="margin-right:0.02778em;">_</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span><span class="mord mathdefault">A</span><span class="mord mathdefault" style="margin-right:0.13889em;">T</span><span class="mord mathdefault" style="margin-right:0.08125em;">H</span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">:</span></span></span></span>{JAVA_HOME}/jre/lib/amd63/server</p>
+<p>export CLASSPATH=.:<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mrow><mi>J</mi><mi>A</mi><mi>V</mi><mi>A</mi><mi mathvariant="normal">_</mi><mi>H</mi><mi>O</mi><mi>M</mi><mi>E</mi></mrow><mi mathvariant="normal">/</mi><mi>l</mi><mi>i</mi><mi>b</mi><mo>:</mo></mrow><annotation encoding="application/x-tex">{JAVA\_HOME}/lib:</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.06em;vertical-align:-0.31em;"></span><span class="mord"><span class="mord mathdefault" style="margin-right:0.09618em;">J</span><span class="mord mathdefault">A</span><span class="mord mathdefault" style="margin-right:0.22222em;">V</span><span class="mord mathdefault">A</span><span class="mord" style="margin-right:0.02778em;">_</span><span class="mord mathdefault" style="margin-right:0.08125em;">H</span><span class="mord mathdefault" style="margin-right:0.02778em;">O</span><span class="mord mathdefault" style="margin-right:0.10903em;">M</span><span class="mord mathdefault" style="margin-right:0.05764em;">E</span></span><span class="mord">/</span><span class="mord mathdefault" style="margin-right:0.01968em;">l</span><span class="mord mathdefault">i</span><span class="mord mathdefault">b</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">:</span></span></span></span>{LD_LIBRARY_PATH}/sapjco3.jar</p>
+</blockquote>
+<p>上面配置的重点是libsapjco3.so的位置，对于sapjco3.jar，可以配置到环境变量${CLASSPATH}中，也可以打包在项目中；</p>
+<p>官方的推荐如下：</p>
+<h2 id="2-docker">2、docker：</h2>
+<p>在docker中可以使用 <strong>-v 宿主机目录:容器目录</strong> 的方式将libsapjco3.so和sapjco3.jar进行映射：</p>
+<blockquote>
+<p>docker run -d \</p>
+<p>--restart=always \</p>
+<p>--name springboot-sapjco3 \</p>
+<p>-v &quot;$PWD/sapringboot-sapjco3&quot;:/usr/app \</p>
+<p><strong>-v /home/appuser/sapjco3/libsapjco3.so:/usr/lib/libsapjco3.so</strong> \</p>
+<p>--workdir=&quot;/usr/app&quot; \</p>
+<p>-p 8080:8080 \</p>
+<p>java:8u111 \</p>
+<p>java -jar sprringboot-sapjco3.jar</p>
+</blockquote>
+<p>这样就将宿主机的libsapjco3.so映射到了容器的/usr/lib下面；</p>
+<p>如果项目中没有打包sapjco3.jar文件，也可以在docker run 的 -v 命令中将该文件映射到jdk的lib目录下：</p>
+<blockquote>
+<p>-v /hemo/appuser/sapjco3/sapjco3.jar:/usr/lib/jvm/java-8-openjdk-amd64/lib/sapjco3.jar</p>
+</blockquote>
+<h1 id="三-spring-boot项目构建">三、spring boot项目构建</h1>
+<h2 id="1-项目结构与配置文件">1、项目结构与配置文件</h2>
+<p>将sapjco3.jar放在项目resource/lib下面；</p>
+<p>CONNECT_SAP_CONFIG.jcoDestination文件是连接SAP的配置文件，必需放在项目的根目录下面，其内容如下：</p>
+<blockquote>
+<pre><code>#for tests only !
+jco.client.lang=en
+jco.client.client=710
+jco.client.user=admin
+jco.client.passwd=admin
+jco.client.sysnr=00
+jco.client.ashost=192.168.1.11
+</code></pre>
+</blockquote>
+<p>配置pom.xml，引入自定义jar包，并在项目打包时将自定义jar包打包进项目的jar：</p>
+<p>[<img src="//assets.cnblogs.com/images/copycode.gif" alt="复制代码" loading="lazy">](javascript:void(0); &quot;复制代码&quot;)</p>
+<pre><code>&lt;dependencies&gt;
+        &lt;!--maven打包时，将resources/lib/sapjco3.jar一并打包--&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;com.sap&lt;/groupId&gt;
+            &lt;artifactId&gt;sapjco3&lt;/artifactId&gt;
+            &lt;version&gt;1.0&lt;/version&gt;
+            &lt;scope&gt;system&lt;/scope&gt;
+          &lt;systemPath&gt;${project.basedir}/src/main/resources/lib/sapjco3.jar&lt;/systemPath&gt;
+        &lt;/dependency&gt;
+        &lt;!--其他依赖--&gt;
+        &lt;dependency&gt;
+              ......
+        &lt;/dependency&gt;
+&lt;dependencies&gt;
+&lt;build&gt;
+        &lt;plugins&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+                &lt;artifactId&gt;spring-boot-maven-plugin&lt;/artifactId&gt;
+                &lt;configuration&gt;
+                    &lt;executable&gt;true&lt;/executable&gt;
+                    &lt;includeSystemScope&gt;true&lt;/includeSystemScope&gt;
+                &lt;/configuration&gt;
+                &lt;dependencies&gt;
+                    &lt;dependency&gt;
+                        &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+                        &lt;artifactId&gt;springloaded&lt;/artifactId&gt;
+                        &lt;version&gt;1.2.5.RELEASE&lt;/version&gt;
+                    &lt;/dependency&gt;
+                &lt;/dependencies&gt;
+            &lt;/plugin&gt;
+        &lt;/plugins&gt;
+&lt;/build&gt;
+</code></pre>
+<p>[<img src="//assets.cnblogs.com/images/copycode.gif" alt="复制代码" loading="lazy">](javascript:void(0); &quot;复制代码&quot;)</p>
+<h2 id="2获取sap连接对象">2.获取sap连接对象</h2>
+<p>[<img src="//assets.cnblogs.com/images/copycode.gif" alt="复制代码" loading="lazy">](javascript:void(0); &quot;复制代码&quot;)</p>
+<pre><code>public class JCoDestinationBuilder {
+    public static JCoDestination destination = null;
+    private static final Logger logger = LogUtils.getPlatformLogger();
+    public static JCoDestination build() throws JCoException {
+        if (null==destination) {
+            synchronized (JCoDestinationBuilder.class) {
+                try {
+                    if (null == destination)
+                        destination = JCoDestinationManager.getDestination(&quot;CONNECT_SAP_CONFIG&quot;);
+                    destination.ping();
+                    logger.info(&quot;Connect to SAP successfully......&quot;);
+                } catch (JCoException e) {
+                    e.printStackTrace();
+                    logger.error(&quot;Connect to SAP failed, error msg: &quot; + e.toString());
+                }
+            }
+        }
+        //logger.info(String.valueOf(destination.getAttributes()));
+        return destination;
+    }
+}
+</code></pre>
+<p>[<img src="//assets.cnblogs.com/images/copycode.gif" alt="复制代码" loading="lazy">](javascript:void(0); &quot;复制代码&quot;)</p>
+<h2 id="3调用sap接口函数">3.调用sap接口函数</h2>
+<p>[<img src="//assets.cnblogs.com/images/copycode.gif" alt="复制代码" loading="lazy">](javascript:void(0); &quot;复制代码&quot;)</p>
+<pre><code>@Service
+public class SappiMonitorServiceImpl implements SappiMonitorService {
+    @Autowired
+    Sm58EntityRepository sm58EntityRepository;
+    @Autowired
+    MessageService messageService;
+    @Autowired
+    private Environment environment;
+    private static final Logger logger = LogUtils.getPlatformLogger();
+
+    @Override
+    public JSONObject monitorSm58(SappiSm58 sappiSm58) throws JCoException {
+        if (sappiSm58==null) sappiSm58 = new SappiSm58();
+        JCoDestination destination = JCoDestinationBuilder.build();
+        JCoFunction function = destination.getRepository().getFunction(&quot;ZMONITOR_SM58&quot;);
+        JCoParameterList importlist = function.getImportParameterList();
+        JCoParameterList exportList = function.getExportParameterList();
+        JCoParameterList tables = function.getTableParameterList();
+
+        importlist.setValue(&quot;I_BEGIN_DATE&quot;,sappiSm58.getI_begin_date());
+        importlist.setValue(&quot;I_END_DATE&quot;,sappiSm58.getI_end_date());
+        try {
+            function.execute(destination);
+            //logger.warn(function.toXML());
+        } catch (JCoException e) {
+            e.printStackTrace();
+            logger.error(&quot;execute()failed......&quot;);
+        }
+        JCoTable t_arfcistate = tables.getTable(&quot;T_ARFCISTATE&quot;);
+        for (int i=0;i&lt;t_arfcistate.getNumRows();i++) {
+            t_arfcistate.setRow(i);
+            Sm58Entity sm58Entity = new Sm58Entity();
+            sm58Entity.setArfcipid(t_arfcistate.getString(&quot;ARFCIPID&quot;));
+            sm58Entity.setArfcpid(t_arfcistate.getString(&quot;ARFCPID&quot;));
+            sm58Entity.setArfctime(t_arfcistate.getString(&quot;ARFCTIME&quot;));
+            sm58Entity.setArfctidcnt(t_arfcistate.getString(&quot;ARFCTIDCNT&quot;));
+            sm58Entity.setArfcdest(t_arfcistate.getString(&quot;ARFCDEST&quot;));
+            sm58Entity.setArfcluwcnt(t_arfcistate.getString(&quot;ARFCLUWCNT&quot;));
+            sm58Entity.setArfcstate(t_arfcistate.getString(&quot;ARFCSTATE&quot;));
+            sm58Entity.setArfcfnam(t_arfcistate.getString(&quot;ARFCFNAM&quot;));
+            sm58Entity.setArfcreturn(t_arfcistate.getString(&quot;ARFCRETURN&quot;));
+            sm58Entity.setArfcuzeit(t_arfcistate.getString(&quot;ARFCUZEIT&quot;));
+            sm58Entity.setArfcdatum(t_arfcistate.getString(&quot;ARFCDATUM&quot;));
+            sm58Entity.setArfcuser(t_arfcistate.getString(&quot;ARFCUSER&quot;));
+            sm58Entity.setArfcretrys(t_arfcistate.getLong(&quot;ARFCRETRYS&quot;));
+            sm58Entity.setArfctcode(t_arfcistate.getString(&quot;ARFCTCODE&quot;));
+            sm58Entity.setArfcrhost(t_arfcistate.getString(&quot;ARFCRHOST&quot;));
+            sm58Entity.setArfcmsg(t_arfcistate.getString(&quot;ARFCMSG&quot;));
+            sm58Entity.setArfcreserv(t_arfcistate.getString(&quot;ARFCRESERV&quot;));
+            sm58Entity.setHash(t_arfcistate.getString(&quot;HASH&quot;));
+            sm58EntityRepository.save(sm58Entity);
+        }
+        String markdown = SappiMonitorServiceImpl.generateMarkdown(&quot;monitorSm58&quot;,
+                exportList.getString(&quot;E_ERR_NUM&quot;).replaceAll(&quot; &quot;,&quot;&quot;));
+        //调用MessageService接口
+        MarkdownMessage markdownMessage = new MarkdownMessage();
+        markdownMessage.setUserid(environment.getProperty(&quot;sap.pi.monitor.sm58.touser&quot;));
+        markdownMessage.setMarkdown(markdown);
+        JSONObject jsonObject = new JSONObject();
+        if (&quot;E&quot;.equals(exportList.getString(&quot;E_STATUS&quot;))) {
+            jsonObject = messageService.sendMarkdown(markdownMessage);
+            jsonObject.put(&quot;errCode&quot;,&quot;-1&quot;);
+            jsonObject.put(&quot;errMsg&quot;,&quot;系统运行出现&quot; + exportList.getString(&quot;E_ERR_NUM&quot;) +&quot;条错误&quot;);
+        } else {
+            jsonObject.put(&quot;errCode&quot;,&quot;0&quot;);
+            jsonObject.put(&quot;errMsg&quot;,&quot;系统运行正常&quot;);
+        }
+        return jsonObject;
+    }
+}
+</code></pre>
+<p>[<img src="//assets.cnblogs.com/images/copycode.gif" alt="复制代码" loading="lazy">](javascript:void(0); &quot;复制代码&quot;)</p>
+<p>上面代码中，<strong>粗体</strong>部分是获取sap连接对象、接口参数赋值、接口调用和获取返回结果的主要代码；</p>
+<h2 id="4编写相应的controller代码">4.编写相应的Controller代码</h2>
+<p>[<img src="//assets.cnblogs.com/images/copycode.gif" alt="复制代码" loading="lazy">](javascript:void(0); &quot;复制代码&quot;)</p>
+<pre><code>@Api(tags = &quot;SAPPI运行状态监控&quot;, description = &quot;监控SAPPI运行状态&quot;)
+@Controller
+@RequestMapping(&quot;/monitor/sappi&quot;)
+public class SappiMonitorController {
+    @Autowired
+    SappiMonitorService sappiMonitorService;
+
+    @ApiOperation(value = &quot;事务代码:SXI_MONITOR&quot;, notes = &quot;请求方式:POST&quot;)
+    @PostMapping(&quot;/sxi_monitor&quot;)
+    @ResponseBody
+    public JSONObject monitorSxi_monitor(@RequestBody(required = false) SappiSxi_monitor sappiSxi_monitor) throws Exception {
+        return sappiMonitorService.monitorSxi_monitor(sappiSxi_monitor);
+    }
+
+    @ApiOperation(value = &quot;事务代码:SM58&quot;, notes = &quot;请求方式:POST&quot;)
+    @PostMapping(&quot;/sm58&quot;)
+    @ResponseBody
+    public JSONObject monitorSm58(@RequestBody(required = false) SappiSm58 sappiSm58) throws Exception {
+        return sappiMonitorService.monitorSm58(sappiSm58);
+    }
+}
+</code></pre>
+<p>[<img src="//assets.cnblogs.com/images/copycode.gif" alt="复制代码" loading="lazy">](javascript:void(0); &quot;复制代码&quot;)</p>
+<h2 id="5运行与测试">5.运行与测试</h2>
+<p>上面的代码中，只贴出了sapjco使用的主要部分，其中数据库的持久化部分和将sap接口调用结果发送到微信通知的部分都可以删减掉；</p>
+<p>测试时，请求方式改为GET方式即可：</p>
+<p>即**@PostMapping(&quot;/sm58&quot;)** 改为 <strong>@GetMapping(&quot;/sm58&quot;)</strong></p>
+<p>然后在浏览器或者用postman直接调用接口：<strong>localhost:8080/monitor/sappi/sm58</strong></p>
+<p>将会看到如下返回结果：</p>
+<blockquote>
+<p>{<br>
+　　&quot;invalidUser&quot;: &quot;&quot;,<br>
+　　&quot;invalidTagList&quot;: [],<br>
+　　&quot;errCode&quot;: &quot;-1&quot;,<br>
+　　&quot;errMsg&quot;: &quot;系统运行出现1 条错误&quot;,<br>
+　　&quot;invalidPartyList&quot;: [],<br>
+　　&quot;invalidUserList&quot;: []<br>
+}</p>
+</blockquote>
+<h2 id="6-打包与部署">6、打包与部署</h2>
+<p>使用maven的package命令将项目打包成jar包，并上传到linux服务器/home/appuser/springboot-sapjco目录下面；</p>
+<p>使用上面的docker命令部署并运行项目；</p>
+<h1 id="四-各操作系统sapjco文件下载">四、各操作系统sapjco文件下载：</h1>
+<p>链接: <a href="https://pan.baidu.com/s/1-1Cxam_9Q6o0z_NqqOGvoA" title="下载sapjco3.jar">https://pan.baidu.com/s/1-1Cxam_9Q6o0z_NqqOGvoA</a> 提取码: v7c8</p>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://yuzhupeng.top/myblogs/post/redis-bi-ji/">
+                  <h3 class="post-title">
+                    Redis笔记
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

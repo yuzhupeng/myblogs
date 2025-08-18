@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>  ICIO、CRISPE、BROKE、RASCEF  Prompt framework | fishyue</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://yuzhupeng.top/myblogs//favicon.ico?v=1755503043926">
+<link rel="stylesheet" href="https://yuzhupeng.top/myblogs//styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="ICIO、CRISPE、BROKE、RASCEF  Prompt framework
+
+
+ICDO框架
+
+🤖 Instruction (任务) ：你希望 AI 去做的任务，比如翻译或者写一段文字
+📋 Context (背景) ：给 AI..." />
+    <meta name="keywords" content="AI" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://yuzhupeng.top/myblogs/">
+        <img src="https://yuzhupeng.top/myblogs//images/avatar.png?v=1755503043926" class="site-logo">
+        <h1 class="site-title">fishyue</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/myblogs" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/myblogs/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/myblogs/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/myblogs/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/yuzhupeng" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      由奢入俭难，由俭入奢易
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/yuzhupeng" target="_blank">Fishyue</a> | <a class="rss" href="https://yuzhupeng.top/myblogs//atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">  ICIO、CRISPE、BROKE、RASCEF  Prompt framework</h2>
+            <div class="post-date">2025-05-29</div>
+            
+            <div class="post-content" v-pre>
+              <p>ICIO、CRISPE、BROKE、RASCEF  Prompt framework</p>
+<ul>
+<li>
+<p>ICDO框架</p>
+<ul>
+<li>🤖 <strong>Instruction (任务)</strong> ：你希望 AI 去做的任务，比如翻译或者写一段文字</li>
+<li>📋 <strong>Context (背景)</strong> ：给 AI 更多的背景信息，引导模型做出更贴合需求的回复，比如你要他写的这段文字用在什么场景的、达到什么目的的</li>
+<li>📖 <strong>Input Data (输入数据)</strong> ：告诉 AI 你这次你要他处理的数据。 比如你要他翻译那么你每次要他翻译的句子就是「输入数据」</li>
+<li>📤 <strong>Output Indicator (输出格式)</strong> ：告诉 AI 他输出的时候要用什么格式、风格、类型，如果你无所谓它输出时候的格式，也可以不写</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-markdown"># Intruction 
+描述：请将以下的法文段落翻译成英文。 
+重要性：翻译的准确性对于我们的商务报告至关重要。 
+# Context 场景：
+这段法文将用于我们公司的年度商务报告。 
+目的：报告将呈现给公司的股东和潜在投资者，所以翻译需要准确且专业。 
+# Input Data 
+&quot;La croissance économique de la France a été stable au cours des dernières années, malgré les défis mondiaux.&quot; 
+# Output Indicator 
+风格：正式和专业的商务英文风格。 
+注意事项：请确保翻译内容无语法错误，并保持原文的意思。
+</code></pre>
+<ul>
+<li>
+<p>CRISPE 框架</p>
+<ul>
+<li>
+<p>😊 <strong>Capacity and Role （角色）</strong> ：告诉 AI 你要他扮演的角色，比如老师、翻译官等等</p>
+<p>📜 <strong>Insight (背景)</strong> ：告诉 AI 你让他扮演这个角色的背景，比如扮演老师是要教自己 10 岁的儿子等等</p>
+<p>📌 <strong>Statement (任务)</strong> ：告诉 AI 你要他做什么任务</p>
+<p>🎨 <strong>Personality (格式)</strong> ：告诉 AI 用什么风格、方式、格式来回答</p>
+<p>🧪 <strong>Experiment (实验)</strong> ：请求 AI 为你回复多个示例（如果不需要，可无）</p>
+</li>
+</ul>
+<pre><code class="language-markdown"># Capacity and Role
+描述：我希望你扮演一名经验丰富的小学数学老师。
+特点：具备耐心和鼓励性的教学风格，能够简单明了地解释数学概念。
+# Insight
+学生信息：你将为我的10岁的儿子提供帮助，他目前正在学习小学四年级的数学。
+学习环境：他在家中进行在线学习，有时会遇到一些数学问题需要帮助。
+# Statement
+描述：请帮助解答以下数学问题，并提供解题步骤。
+重要性：确保解答方法适合10岁儿童的理解能力。
+# Personality
+风格：友好、鼓励性，使用简单易懂的语言。
+示例：可以使用实际生活中的例子来解释数学概念。
+# Experiment
+描述：如果可能，请为每个问题提供两种不同的解题方法。
+目的：增强孩子的数学思维和解题能力。
+</code></pre>
+</li>
+<li>
+<p>BROKE框架</p>
+<ul>
+<li>
+<p>🌄 <strong>Background (背景)</strong>：说明背景，提供充足信息</p>
+<p>🎭 <strong>Role (角色)</strong>：你要 AI 扮演的角色是什么</p>
+<p>🎯 <strong>Objectives (目标/任务)</strong>：你要 AI 做的事情的一个描述</p>
+<p>🔑 <strong>Key Result (关键结果)</strong>：对于 AI 输出的回答，在风格、格式、内容等方面的要求</p>
+<p>🌟 <strong>Evolve (改进)</strong>：在 AI 给出回答以后，三种调整、改进方法</p>
+</li>
+</ul>
+<pre><code class="language-markdown"># Background
+项目描述：我们正在启动一个新的软件开发项目，目标是为中小企业提供一款高效的财务管理工具。
+团队组成：项目团队由5名开发人员、2名设计师、1名测试工程师和1名产品经理组成。
+# Role
+描述：我希望你扮演一名经验丰富的项目经理。
+特点：具备出色的项目管理技能，能够确保项目按时完成并满足预定的质量标准。
+# Objectives
+描述：请帮助我们制定一个详细的项目计划，包括项目的各个阶段、关键里程碑、资源分配和风险管理。
+# Key Result
+输出格式：项目计划应以Gantt图的形式呈现，并包括每个任务的开始和结束日期、负责人和依赖关系。
+关键指标：确保项目计划考虑到所有潜在的风险，并为每个风险提供了相应的应对策略。
+# Evolve
+反馈机制：在项目计划制定完成后，请提供一个反馈机制，以便团队成员可以提出他们的建议和改进意见。
+迭代：根据团队的反馈和项目进展，每两周对项目计划进行一次迭代和更新。
+持续监控：提供一个机制，以便我们可以实时监控项目的进展和状态。
+</code></pre>
+</li>
+<li>
+<p>RASCEF框架</p>
+<ul>
+<li>
+<p>🎭 <strong>Role (角色)</strong>：这就是 AI 需要扮演的人，他可以是电子邮件营销人员、项目经理、厨师或您能想到的任何其他角色</p>
+<p>🔍 <strong>Action (行动)</strong>：这是人工智能需要做的，例如编写项目执行计划</p>
+<p>📝 <strong>Script (步骤)</strong>：这些是 A 完成操作应遵循的步骤</p>
+<p>🌐 <strong>Content (上下文)</strong>：这是背景信息或情况</p>
+<p>🔍 <strong>Example (示例)</strong>：这些是说明这一点的特定实例，它们帮助人工智能理解语气和思维/写作风格</p>
+<p>📄 <strong>Format (格式)</strong>：这是 AI 应该呈现其答案的方式，它可以是段落、列表、对话或任何其他格式</p>
+<pre><code class="language-markdown"># Role
+描述：我希望你扮演一名经验丰富的电子邮件营销人员。
+特点：具备出色的市场分析能力，了解当前的电子邮件营销趋势和最佳实践。
+# Action
+任务：请为我们制定一个电子邮件营销策略，包括目标受众、内容策划和发送频率。
+# Script
+1.分析目标受众的特点和需求。
+2.设计电子邮件的内容和格式。
+3.制定发送计划和频率。
+4.设计跟踪和分析反馈的机制。
+# Content
+公司背景：我们是一家新兴的健康食品品牌，目标受众为20-40岁的健康生活爱好者。
+营销目标：提高品牌知名度，增加网站流量和促进产品销售。
+# Example
+内容建议：可以设计一系列关于健康饮食的小贴士，每周发送一次。
+风格：友好、鼓励性，使用简单易懂的语言。
+# Format
+电子邮件模板：使用清晰的标题、引人入胜的图片和简洁的文本内容。
+响应式设计：确保电子邮件在各种设备上都能正常显示。
+希望这样的格式和内容满足您的需求，如有其他修改或补充，请告诉我。
+</code></pre>
+</li>
+</ul>
+</li>
+</ul>
+
+            </div>
+            
+              <div class="tag-container">
+                
+                  <a href="https://yuzhupeng.top/myblogs/tag/rgSt-X3a9P/" class="tag">
+                    AI
+                  </a>
+                
+              </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://yuzhupeng.top/myblogs/post/springboot-xing-neng-you-hua-de-12-ge-xiao-ji-qiao/">
+                  <h3 class="post-title">
+                    SpringBoot性能优化的12个小技巧
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

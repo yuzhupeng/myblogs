@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>程序员的底层思维 | fishyue</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://yuzhupeng.top/myblogs//favicon.ico?v=1755503043926">
+<link rel="stylesheet" href="https://yuzhupeng.top/myblogs//styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="[《程序员的底层思维》读后感]( &quot;发布于 2025-06-11 15:03&quot;)
+一、 什么是“底层思维”？
+
+
+超越表面技法： “底层思维”不是指具体的编程技巧或某个框架的使用方法。它指的是程序员在面对问题时所依赖的那..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://yuzhupeng.top/myblogs/">
+        <img src="https://yuzhupeng.top/myblogs//images/avatar.png?v=1755503043926" class="site-logo">
+        <h1 class="site-title">fishyue</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/myblogs" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/myblogs/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/myblogs/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/myblogs/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/yuzhupeng" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      由奢入俭难，由俭入奢易
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/yuzhupeng" target="_blank">Fishyue</a> | <a class="rss" href="https://yuzhupeng.top/myblogs//atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">程序员的底层思维</h2>
+            <div class="post-date">2025-06-12</div>
+            
+            <div class="post-content" v-pre>
+              <h1 id="程序员的底层思维读后感-发布于-2025-06-11-1503">[《程序员的底层思维》读后感]( &quot;发布于 2025-06-11 15:03&quot;)</h1>
+<h3 id="一-什么是底层思维">一、 什么是“底层思维”？</h3>
+<ul>
+<li>
+<p><strong>超越表面技法：</strong> “底层思维”不是指具体的编程技巧或某个框架的使用方法。它指的是程序员在面对问题时所依赖的那些<strong>基础的、普遍适用的认知模式和原则</strong>。</p>
+</li>
+<li>
+<p><strong>打个比方：</strong> 就像盖房子，表面看是漂亮的装修，但真正决定房子质量和稳固性的是它的地基和结构。底层思维就是这个“地基”和“结构”。</p>
+</li>
+<li>
+<p><strong>底层思维的特征：</strong></p>
+<ul>
+<li><strong>抽象能力：</strong> 从具体事物中提炼出本质特征。</li>
+<li><strong>分解能力：</strong> 把大问题拆解成小问题。</li>
+<li><strong>模式识别：</strong> 发现重复的规律和解决方案。</li>
+<li><strong>系统思考：</strong> 理解事物之间的关联和整体运作。</li>
+<li><strong>逻辑推理：</strong> 严谨地一步步分析和解决问题。</li>
+<li>它是一种<strong>通用的、可迁移的能力</strong>，无论你写前端、后端、还是做算法，都能受益。</li>
+</ul>
+</li>
+</ul>
+<h3 id="二-书中核心的思维模式提炼">二、书中核心的思维模式提炼</h3>
+<h4 id="模式一第一性原理思维-从零开始思考本质"><strong>模式一：第一性原理思维 (从零开始思考本质)</strong></h4>
+<ul>
+<li>
+<p><strong>追溯事物的本源，从最基本的假设和事实出发进行思考，而非简单地依赖经验、类比或现有的解决方案。</strong> 它鼓励我们剥离表象，直达问题的本质。</p>
+</li>
+<li>
+<p><strong>在编程中的体现：</strong></p>
+<ul>
+<li><strong>排查Bug：</strong> 遇到一个Bug，不要急于尝试各种“偏方”，而是回到代码最基本的逻辑和预期行为，一步步推导问题可能出在哪里。</li>
+<li><strong>系统设计：</strong> 不仅仅是模仿已有的架构，而是从系统的核心需求、约束条件出发，思考最本质的实现方式。例如，设计一个存储系统，不是直接用Redis，而是思考“我需要存储什么？读写性能要求？数据一致性如何保证？”</li>
+</ul>
+</li>
+<li>
+<p><strong>价值：</strong> 帮助我们跳出惯性思维，找到更创新、更根本的解决方案，避免“头痛医头脚痛医脚”。</p>
+</li>
+<li>
+<p><strong>在书中的体现：</strong></p>
+<ul>
+<li>不要满足于“知其然”，更要深究“知其所以然”。当遇到一个问题时，不应立刻寻求现成的答案，而是要回溯到问题的最原始定义、最基本的要素以及它们之间的关系。</li>
+<li><strong>深层抽象思维</strong>促使我们进行更深层次的抽象。例如，在设计一个系统时，不是直接考虑用哪个框架，而是思考这个系统最核心的功能是什么？它的输入和输出是什么？它要解决的最根本痛点是什么？</li>
+<li>第一性原理思维是<strong>批判性思维</strong>的基石。它要求我们质疑既有的方案、既定的规则，甚至是对自己设定的假设进行反思，从而发现更优、更根本的解决方案。</li>
+</ul>
+</li>
+</ul>
+<p>当我们调试一个复杂的 bug 时，运用第一性原理思维意味着我们要放下对代码表面现象的猜测，而是从程序的执行流程、变量的生命周期、数据的传递等最基本的逻辑出发，一步步地推导和验证，直到找到问题的根源</p>
+<h4 id="模式二复杂性管理-管理复杂而不是消除复杂"><strong>模式二：复杂性管理 (管理复杂而不是消除复杂)</strong></h4>
+<ul>
+<li>
+<p>软件系统的本质就是复杂。程序员的工作很大一部分就是<strong>管理和降低这种复杂性，而不是试图完全消除它。</strong> 这是一种认识到复杂性不可避免，并采取策略将其变得可控、可理解、可维护的思维。</p>
+</li>
+<li>
+<p><strong>核心策略：</strong></p>
+<ul>
+<li><strong>模块化/组件化：</strong> 将大系统拆分成独立、高内聚、低耦合的小模块。</li>
+<li><strong>分层与抽象：</strong> 将系统按职责划分层次，隐藏内部细节，提供清晰的接口。</li>
+<li><strong>职责单一原则：</strong> 每个模块或函数只做一件事，并把它做好。</li>
+</ul>
+</li>
+<li>
+<p><strong>在编程中的体现：</strong></p>
+<ul>
+<li>微服务架构就是管理复杂性的一种体现，通过拆分服务来降低单个服务的复杂度。</li>
+<li>写函数时，考虑函数是否只做一件事，参数和返回值是否清晰。</li>
+<li>设计类时，考虑类的职责边界。</li>
+</ul>
+</li>
+<li>
+<p><strong>价值：</strong> 让我们的代码更清晰、更易于理解、维护和扩展，降低犯错的概率。</p>
+</li>
+<li>
+<p><strong>在书中的体现：</strong></p>
+<ul>
+<li>通过<strong>结构化思维</strong>的方法来应对复杂性。比如，将一个庞大的系统分解成若干个独立、职责明确的模块（<strong>模块化</strong>），每个模块只负责一部分功能，降低了单个部分的复杂度。</li>
+<li><strong>分层与抽象：</strong> 通过将系统划分为不同的层次（如用户界面层、业务逻辑层、数据访问层），每一层只关注自己的职责，并通过清晰的接口与上下层交互。同时，通过<strong>抽象</strong>，隐藏不必要的实现细节，只暴露关键信息，使得上层调用者无需关心底层复杂性。</li>
+<li>通过<strong>解耦</strong>来降低模块间的相互依赖，从而提高系统的弹性和可维护性。例如，遵循<strong>单一职责原则</strong>（一个模块或函数只做一件事），可以有效减少模块间的藕合度。</li>
+</ul>
+</li>
+</ul>
+<p>许多设计模式和架构风格（如微服务架构）本质上都是为了更好地管理复杂性。通过这些成熟的模式，我们可以将复杂的系统切分成更小、更易于管理和理解的单元。</p>
+<h4 id="模式三模式与泛化-识别和运用普适性解决方案"><strong>模式三：模式与泛化 (识别和运用普适性解决方案)</strong></h4>
+<ul>
+<li>
+<p>这种思维模式强调<strong>识别在不同场景中重复出现的问题（模式），并运用已经被验证的、通用的解决方案。同时，它也指将解决特定问题的经验和方法，提炼并泛化为更普遍适用的原则或工具。</strong></p>
+</li>
+<li>
+<p><strong>在编程中的体现：</strong></p>
+<ul>
+<li><strong>设计模式的应用：</strong> 当你需要创建一系列相关对象时，自然想到工厂模式；当对象状态改变需要通知其他对象时，想到观察者模式。</li>
+<li><strong>算法的复用：</strong> 排序、查找等都是普遍存在的模式。</li>
+<li><strong>代码的抽象与重构：</strong> 将相似的代码块抽象成通用函数或类，实现代码复用。</li>
+</ul>
+</li>
+<li>
+<p><strong>价值：</strong> 提高开发效率，减少重复劳动，提升代码质量和可维护性，避免“重复造轮子”。</p>
+</li>
+<li>
+<p><strong>在书中的体现：</strong></p>
+<ul>
+<li>培养一种**“模式识别”的能力**，即在面对一个新问题时，能够迅速联想到它是否与之前遇到的某个问题有相似的结构或特征，从而套用已有的解决方案。这不仅仅是设计模式，还包括架构模式、算法模式等。</li>
+<li><strong>通用化与抽象：</strong> 解决一个具体问题后，我们应该思考：这个问题是否具有普遍性？我能否将这次解决问题的过程或代码，提炼成一个更通用的函数、类库或组件，以便在其他类似场景中复用？这就是<strong>泛化</strong>的过程。</li>
+<li><strong>构建知识体系：</strong> 通过模式识别和泛化，程序员能够逐步构建自己的“模式库”或“工具箱”，从而提高解决问题的效率和质量。当遇到一个问题时，不再是每次都从零开始思考，而是可以站在巨人的肩膀上，运用已有的智慧。</li>
+<li><strong>工具化思维：</strong> 将重复性的工作或操作<strong>工具化</strong>。通过编写脚本、自动化测试等方式，将重复且容易出错的人工操作转化为可靠的自动化流程，这本身也是一种将具体操作泛化为可复用“模式”的体现。</li>
+</ul>
+</li>
+</ul>
+<h3 id="三-如何培养底层思维">三、如何培养底层思维？</h3>
+<ul>
+<li><strong>主动思考“为什么”：</strong> 不要只满足于“知道怎么做”，更要追问“为什么要这么做？”“有没有更好的方法？”。</li>
+<li><strong>刻意练习与反思：</strong> 在日常工作中，有意识地运用这些思维模式去分析和解决问题，并在事后反思效果。</li>
+<li><strong>多看源码，多思考：</strong> 学习优秀开源项目的源码，不仅看它“怎么实现”，更要思考它“为什么这么设计”。</li>
+<li><strong>多总结，多分享：</strong> 把自己的思考和经验整理成文档，或者分享给他人，这会加深你的理解。</li>
+<li><strong>跳出舒适区：</strong> 尝试解决一些你从未接触过、看似很难的问题，挑战你的思维极限。</li>
+</ul>
+<h3 id="四-总结">四、总结</h3>
+<ul>
+<li>张建飞的《程序员的底层思维》这本书的价值在于，它不仅仅传授技术知识，更重要的是帮助读者培养和提升这些核心的<strong>思维能力</strong>。这些思维模式并非孤立存在，它们相互关联，共同构成了程序员面对复杂世界、解决未知挑战的基石。通过理解和刻意练习这些底层思维，我们才能从单纯的“代码编写者”成长为真正的“问题解决者”和“系统构建者”。</li>
+</ul>
+<h3 id="五-电子书资源">五、电子书资源</h3>
+<ul>
+<li>链接: https://pan.baidu.com/s/11Os5gs8VHGx0LTQANsTpFQ  密码: ow5t</li>
+</ul>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://yuzhupeng.top/myblogs/post/git-ji-chu-shi-yong/">
+                  <h3 class="post-title">
+                    git基础使用
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

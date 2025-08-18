@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Redis笔记 | fishyue</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://yuzhupeng.top/myblogs//favicon.ico?v=1755503043926">
+<link rel="stylesheet" href="https://yuzhupeng.top/myblogs//styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="
+
+Redis本质：内存型键值对数据库
+
+
+基本数据类型
+
+String
+Hash
+List
+Set
+ZSet
+特殊类型
+
+
+
+持久化机制
+
+RDB（快照）
+AOF（追加日志）
+
+
+
+
+Redis基本数据类型
+String（字符串）
+🔑 ..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://yuzhupeng.top/myblogs/">
+        <img src="https://yuzhupeng.top/myblogs//images/avatar.png?v=1755503043926" class="site-logo">
+        <h1 class="site-title">fishyue</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/myblogs" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/myblogs/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/myblogs/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/myblogs/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/yuzhupeng" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      由奢入俭难，由俭入奢易
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/yuzhupeng" target="_blank">Fishyue</a> | <a class="rss" href="https://yuzhupeng.top/myblogs//atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">Redis笔记</h2>
+            <div class="post-date">2025-07-08</div>
+            
+            <div class="post-content" v-pre>
+              <ul>
+<li>
+<p>Redis本质：内存型键值对数据库</p>
+<ul>
+<li>
+<p>基本数据类型</p>
+<ul>
+<li>String</li>
+<li>Hash</li>
+<li>List</li>
+<li>Set</li>
+<li>ZSet</li>
+<li>特殊类型</li>
+</ul>
+</li>
+<li>
+<p>持久化机制</p>
+<ul>
+<li>RDB（快照）</li>
+<li>AOF（追加日志）</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id=""><a href="#Redis%E5%9F%BA%E6%9C%AC%E6%95%B0%E6%8D%AE%E7%B1%BB%E5%9E%8B" title="Redis基本数据类型"></a>Redis基本数据类型</h2>
+<h3 id="-2"><a href="#String%EF%BC%88%E5%AD%97%E7%AC%A6%E4%B8%B2%EF%BC%89" title="String（字符串）"></a><strong>String（字符串）</strong></h3>
+<p>🔑 <strong>数据结构</strong><br>
+二进制安全，可存储文本/数字/序列化对象，最大512MB</p>
+<p>💻 <strong>核心命令</strong></p>
+<ul>
+<li><code>SET key value [EX seconds]</code> 设置带过期时间的值</li>
+<li><code>GET key</code></li>
+<li><code>INCR/DECR key</code> 原子计数器</li>
+<li><code>MSET/MGET</code> 批量操作</li>
+<li><code>SETBIT/GETBIT</code> 位操作</li>
+</ul>
+<p>🎯 <strong>应用场景</strong></p>
+<ul>
+<li>缓存HTML片段/序列化对象</li>
+<li>分布式锁（SETNX）</li>
+<li>限流器（INCR+EXPIRE）</li>
+<li>位统计（日活用户Bitmap）</li>
+</ul>
+<p>⚠️ <strong>注意事项</strong></p>
+<ul>
+<li>Value超过10KB需警惕大Key问题</li>
+<li>INCR存在溢出风险（最大值9223372036854775807）</li>
+</ul>
+<p>🔧 <strong>底层原理</strong></p>
+<ul>
+<li>动态字符串SDS（O(1)获取长度，预分配空间）</li>
+<li>数值类型自动转int存储优化</li>
+</ul>
+<hr>
+<h3 id="-3"><a href="#Hash%EF%BC%88%E5%93%88%E5%B8%8C%E8%A1%A8%EF%BC%89" title="Hash（哈希表）"></a><strong>Hash（哈希表）</strong></h3>
+<p>🔑 <strong>数据结构</strong><br>
+双向链表，元素可重复，按插入顺序排序</p>
+<p>💻 <strong>核心命令</strong></p>
+<ul>
+<li><code>LPUSH/RPUSH key element</code></li>
+<li><code>LPOP/RPOP key</code></li>
+<li><code>BLPOP/BRPOP</code> 阻塞式弹出</li>
+<li><code>LRANGE key start stop</code></li>
+</ul>
+<p>🎯 <strong>应用场景</strong></p>
+<ul>
+<li>消息队列（结合BLPOP实现）</li>
+<li>最新消息排行（LPUSH+LRANGE）</li>
+<li>分页查询（LRANGE实现）</li>
+</ul>
+<p>⚠️ <strong>注意事项</strong></p>
+<ul>
+<li>长列表（元素数&gt;1000）查询性能下降</li>
+<li>多个消费者场景需做消息ACK确认</li>
+</ul>
+<p>🔧 <strong>底层原理</strong></p>
+<ul>
+<li>快速链表quicklist（ziplist+linkedlist结合）</li>
+<li>节点元素上限可通过list-max-ziplist-size配置</li>
+</ul>
+<p>📌 <strong>实战技巧</strong></p>
+<ul>
+<li>使用<code>LTRIM</code>维护固定长度队列</li>
+</ul>
+<hr>
+<h3 id="-4"><a href="#List%EF%BC%88%E5%88%97%E8%A1%A8%EF%BC%89" title="List（列表）"></a><strong>List（列表）</strong></h3>
+<p>🔑 <strong>数据结构</strong><br>
+双向链表，元素可重复，按插入顺序排序</p>
+<p>💻 <strong>核心命令</strong></p>
+<ul>
+<li><code>LPUSH/RPUSH key element</code></li>
+<li><code>LPOP/RPOP key</code></li>
+<li><code>BLPOP/BRPOP</code> 阻塞式弹出</li>
+<li><code>LRANGE key start stop</code></li>
+</ul>
+<p>🎯 <strong>应用场景</strong></p>
+<ul>
+<li>消息队列（结合BLPOP实现）</li>
+<li>最新消息排行（LPUSH+LRANGE）</li>
+<li>分页查询（LRANGE实现）</li>
+</ul>
+<p>⚠️ <strong>注意事项</strong></p>
+<ul>
+<li>长列表（元素数&gt;1000）查询性能下降</li>
+<li>多个消费者场景需做消息ACK确认</li>
+</ul>
+<p>🔧 <strong>底层原理</strong></p>
+<ul>
+<li>快速链表quicklist（ziplist+linkedlist结合）</li>
+<li>节点元素上限可通过list-max-ziplist-size配置</li>
+</ul>
+<p>📌 <strong>实战技巧</strong></p>
+<ul>
+<li>使用<code>LTRIM</code>维护固定长度队列</li>
+</ul>
+<hr>
+<h3 id="-5"><a href="#Set%EF%BC%88%E9%9B%86%E5%90%88%EF%BC%89" title="Set（集合）"></a><strong>Set（集合）</strong></h3>
+<p>🔑 <strong>数据结构</strong><br>
+无序且元素唯一的集合，支持交并差运算</p>
+<p>💻 <strong>核心命令</strong></p>
+<ul>
+<li><code>SADD key member</code></li>
+<li><code>SISMEMBER key member</code></li>
+<li><code>SINTER key1 key2</code> 交集</li>
+<li><code>SUNIONSTORE dest key1 key2</code> 并集存储</li>
+</ul>
+<p>🎯 <strong>应用场景</strong></p>
+<ul>
+<li>标签系统（用户标签集合）</li>
+<li>共同关注（SINTER计算交集）</li>
+<li>UV统计（去重计数）</li>
+</ul>
+<p>⚠️ <strong>注意事项</strong></p>
+<ul>
+<li>SMEMBERS全量获取可能阻塞，优先用SSCAN</li>
+<li>超大集合（&gt;1W元素）交并运算消耗内存激增</li>
+</ul>
+<p>🔧 <strong>底层原理</strong></p>
+<ul>
+<li>小集合用intset（整数数组）</li>
+<li>大集合转为hashtable存储</li>
+</ul>
+<p>📌 <strong>实战技巧</strong></p>
+<ul>
+<li>使用<code>SPOP</code>实现随机抽奖功能</li>
+</ul>
+<hr>
+<h3 id="-6"><a href="#ZSet%EF%BC%88%E6%9C%89%E5%BA%8F%E9%9B%86%E5%90%88%EF%BC%89" title="ZSet（有序集合）"></a><strong>ZSet（有序集合）</strong></h3>
+<p>🔑 <strong>数据结构</strong><br>
+唯一成员+排序权重（score）的有序结构</p>
+<p>💻 <strong>核心命令</strong></p>
+<ul>
+<li><code>ZADD key score member</code></li>
+<li><code>ZRANGE key start stop [WITHSCORES]</code></li>
+<li><code>ZRANK key member</code> 获取排名</li>
+<li><code>ZREVRANGEBYSCORE</code> 按分数范围查询</li>
+</ul>
+<p>🎯 <strong>应用场景</strong></p>
+<ul>
+<li>实时排行榜（直播打赏排行）</li>
+<li>延迟队列（score存执行时间戳）</li>
+<li>范围查询（地理位置附近的人）</li>
+</ul>
+<p>⚠️ <strong>注意事项</strong></p>
+<ul>
+<li>Score使用双精度浮点数，存在精度丢失风险</li>
+<li>大数据量范围查询优先用<code>ZSCAN</code></li>
+</ul>
+<p>🔧 <strong>底层原理</strong></p>
+<ul>
+<li>ziplist（元素数&lt;128且value&lt;64字节时）</li>
+<li>skiplist+dict组合结构（跳跃表维护顺序，字典快速查找）</li>
+</ul>
+<p>📌 <strong>实战技巧</strong></p>
+<ul>
+<li>使用<code>ZUNIONSTORE</code>实现多维度加权排序</li>
+</ul>
+<hr>
+<h3 id="-7"><a href="#%E6%95%B0%E6%8D%AE%E7%B1%BB%E5%9E%8B%E9%80%89%E6%8B%A9%E5%86%B3%E7%AD%96%E6%A0%91" title="数据类型选择决策树"></a><strong>数据类型选择决策树</strong></h3>
+<p>**<br>
+graph TD<br>
+A[需要排序?] --&gt;|Yes| B(ZSet)<br>
+A --&gt;|No| C{需要唯一性?}<br>
+C --&gt;|Yes| D(Set)<br>
+C --&gt;|No| E{数据结构形态?}<br>
+E --&gt;|Key-Value| F(Hash)<br>
+E --&gt;|单值/计数器| G(String)<br>
+E --&gt;|队列/栈| H(List)</p>
+<pre><code class="language-|">
+***
+
+### [](#对比表 &quot;对比表&quot;)**对比表**
+
+|          | 唯一性 | 排序  | 时间复杂度   | 典型误用场景        |
+| -------- | --- | --- | ------- | ------------- |
+| **Set**  | 是   | 否   | O(1)    | 用SINTER计算超大集合 |
+| **ZSet** | 是   | 是   | O(logN) | Score精度丢失问题   |
+| **List** | 否   | 插入序 | O(N)    | 长列表LRANGE全量获取 |
+
+***
+
+建议结合具体业务场景练习数据类型组合使用，例如：
+
+* **社交APP场景**：用ZSet维护好友亲密度排行，Hash存储用户资料，Set管理共同好友
+* **电商系统场景**：用String缓存商品详情，Hash存储购物车信息，ZSet实现销量排行榜
+
+
+
+</code></pre>
+</li>
+</ul>
+<p>目录</p>
+<ul>
+<li>
+<p><a href="#%E4%B8%80%E5%9F%BA%E7%A1%80">一、基础</a></p>
+</li>
+<li>
+<p><a href="#%E4%BA%8C%E4%B8%BA%E4%BB%80%E4%B9%88redis%E6%98%AF%E5%8D%95%E7%BA%BF%E7%A8%8B%E7%9A%84">二、为什么Redis是单线程的？</a></p>
+</li>
+<li>
+<p><a href="#%E4%B8%89%E4%B8%BA%E4%BB%80%E4%B9%88%E5%8D%95%E7%BA%BF%E7%A8%8B%E8%BF%99%E4%B9%88%E5%BF%AB">三、为什么单线程这么快？</a></p>
+</li>
+<li>
+<p><a href="#%E5%9B%9Bselectpollepoll">四、select、poll、epoll</a></p>
+</li>
+<li>
+<p><a href="#%E4%BA%94redis%E7%9A%84%E4%BA%8B%E5%8A%A1">五、Redis的事务</a></p>
+</li>
+<li>
+<p><a href="#%E5%85%ADredis%E7%9A%84%E7%9B%91%E6%8E%A7">六、Redis的监控</a></p>
+</li>
+<li>
+<p><a href="#%E4%B8%83redis%E7%9A%84%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6">七、Redis的配置文件</a></p>
+</li>
+<li>
+<p><a href="#%E5%85%ABredis%E7%9A%84%E6%8C%81%E4%B9%85%E5%8C%96">八、Redis的持久化</a></p>
+<ul>
+<li><a href="#81fork%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8">8.1、fork()系统调用</a></li>
+<li><a href="#82rdb">8.2、RDB</a></li>
+<li><a href="#83aof">8.3、AOF</a></li>
+<li><a href="#84rdb%E5%92%8Caof%E7%9A%84%E9%80%89%E6%8B%A9">8.4、RDB和AOF的选择</a></li>
+</ul>
+</li>
+<li>
+<p><a href="#%E4%B9%9D%E5%8F%91%E5%B8%83%E8%AE%A2%E9%98%85">九、发布订阅</a></p>
+</li>
+<li>
+<p><a href="#%E5%8D%81%E4%B8%BB%E4%BB%8E%E5%A4%8D%E5%88%B6">十、主从复制</a></p>
+</li>
+<li>
+<p><a href="#%E5%8D%81%E4%B8%80%E9%9B%86%E7%BE%A4%E6%90%AD%E5%BB%BA%E5%8F%8A%E5%B0%8F%E5%AE%9E%E9%AA%8C">十一、集群搭建及小实验</a></p>
+<ul>
+<li><a href="#111%E6%9E%B6%E6%9E%84%E4%B8%80%E4%B8%80%E4%B8%BB%E4%B8%A4%E4%BB%8E">11.1、架构一：一主两从</a></li>
+<li><a href="#112%E6%9E%B6%E6%9E%84%E4%BA%8C">11.2、架构二</a></li>
+<li><a href="#113%E6%9E%B6%E6%9E%84%E4%B8%89sentinel">11.3、架构三：Sentinel</a></li>
+</ul>
+</li>
+<li>
+<p><a href="#%E5%8D%81%E4%BA%8C%E7%BC%93%E5%AD%98%E7%A9%BF%E9%80%8F%E7%BC%93%E5%AD%98%E5%87%BB%E7%A9%BF%E9%9B%AA%E5%B4%A9">十二、缓存穿透、缓存击穿、雪崩</a></p>
+</li>
+</ul>
+<p>\</p>
+<figure data-type="image" tabindex="1"><a href="https://img2020.cnblogs.com/blog/1496926/202012/1496926-20201211182212321-54980522.png"><img src="https://img2020.cnblogs.com/blog/1496926/202012/1496926-20201211182212321-54980522.png" alt="" loading="lazy"></a></figure>
+<p>面试官都关注了！你还在犹豫什么呢？</p>
+<h3 id="一-基础">一、基础<a href="#%E4%B8%80%E5%9F%BA%E7%A1%80">#</a></h3>
+<p>重新整理了一下，这篇笔记之前还有一篇基础相关的笔记，<a href="https://www.cnblogs.com/ZhuChangwu/p/11150535.html">点击进入</a></p>
+<figure data-type="image" tabindex="2"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222317905-1049971542.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222317905-1049971542.png" alt="image-20200919193313950" loading="lazy"></a></figure>
+<h3 id="二-为什么redis是单线程的">二、为什么Redis是单线程的？<a href="#%E4%BA%8C%E4%B8%BA%E4%BB%80%E4%B9%88redis%E6%98%AF%E5%8D%95%E7%BA%BF%E7%A8%8B%E7%9A%84">#</a></h3>
+<p>官方回答：</p>
+<p>Redis是基于内存操作，CPU不是Redis的性能瓶颈，Redis的性能瓶颈是机器的内存大小、以及网络的带宽，既然单线程容易实现，那就直接使用单线程来实现了</p>
+<p>此外：</p>
+<p>使用单线程实现，那所有的命令就会排队执行，不需要考虑各种同步问题和加锁带来的性能消耗问题。</p>
+<p>既然CPU不是Redis的瓶颈，那么如果不想让服务器的其他CPU闲置，可以考虑起多个Redis进程，因为Redis不是关系型数据库，数据之间也没有约束。这样还能搭建集群，分压分流。</p>
+<h3 id="三-为什么单线程这么快">三、为什么单线程这么快？<a href="#%E4%B8%89%E4%B8%BA%E4%BB%80%E4%B9%88%E5%8D%95%E7%BA%BF%E7%A8%8B%E8%BF%99%E4%B9%88%E5%BF%AB">#</a></h3>
+<ol>
+<li>Redis是一款内存数据库，基于内存的读写速度本来就很快</li>
+<li>如果使用多线程的话会有线程上下文的切换。对于内存系统来说，单线程操作内存的效率才是最高的。</li>
+<li>Redis使用了epoll IO多路复用，可以实现用一条线程处理并发的网络请求</li>
+</ol>
+<h3 id="四-select-poll-epoll">四、select、poll、epoll<a href="#%E5%9B%9Bselectpollepoll">#</a></h3>
+<p>select、poll、eopll是操作系统处理网络上传输过来的数据的不同实现，数据从经过网线流入网卡，网卡中的驱动程序会向CPU发出中断信号，在交互系统中，中断信号的优先级是很高的，CPU立刻去处理这个中断信息，CPU通过终端表找到相应的处理函数：</p>
+<p>1、禁用网卡的中断信号，告诉网卡下次有数据过来直接写内存就ok</p>
+<p>2、通过驱动程序申请、初始化一块内存，将网卡中的数据写进内存中</p>
+<p>3、然后解析处理数据：操作系统先校验数据是否符合os structure、数据往上层传递，<strong>Ehthernet校验数据</strong>是否符合预期的格式，继续向上层传递到ip层，再往上到tcp/udp层并按照指定的协议去解析</p>
+<p>4、应用层想使用这部分数据就有一个拆包+格式校验的过程</p>
+<p>内存指的socket文件的接受缓冲区。</p>
+<p>作为一个网络服务器同一时刻可能有多个socket和他建立连接与他进行数据的交互，这里的select、poll、epoll说的其实就是在众多的socket中如何快速高效的找到接受缓冲区存在数据的socket文件，然后交给应用层的代码去处理它</p>
+<p>Select模型</p>
+<figure data-type="image" tabindex="3"><a href="https://pic1.zhimg.com/80/v2-85dba5430f3c439e4647ea4d97ba54fc_hd.jpg"><img src="https://pic1.zhimg.com/80/v2-85dba5430f3c439e4647ea4d97ba54fc_hd.jpg" alt="" loading="lazy"></a></figure>
+<p>操作系统为每一个Tcp连接都会相应的创建sock文件，这些sock文件隶属于操作系统的文件列表。</p>
+<p>当sock收到了数据，会调用中断程序唤醒进程A，将进程A从所有的Sock的等来队列中移除，加入到内核空间的工作队列中进程A只知道至少有一个sock的接受缓冲区已经由数据了，但是它不知道到底是哪个sock，所以它得通过遍历sock列表的方式找到这个sock。</p>
+<p>select的缺点和不足：</p>
+<ol>
+<li>进程A需要添加进所有的sock的等待队列中，这会进行一次遍历。</li>
+<li>当有sock就收到数据时，又得将进程A从所有的sock等待队列中移除，这又是一次遍历。</li>
+<li>进程A寻找有数据的sock时，还会发生一次遍历。</li>
+<li>为了放置单个进程将系统的所有资源都耗干，linux会限制单个进程能打开的fd文件句柄数，即使你可以修改配置，突破这会个限制</li>
+</ol>
+<p>下图截自《UNIX环境高级编程》第二版</p>
+<figure data-type="image" tabindex="4"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200920144559030-1425025324.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200920144559030-1425025324.png" alt="" loading="lazy"></a></figure>
+<p>上图可以看到，使用select系统调用上有三个核心参数：分别是 readfds、writefds、exceptfds指向文件描述符号指针，每个描述符都被放在fd_set中， 也就是说针对read、write、和except分别对应着一个独立的fd_set , (并没有网上流传的数组哦，至少《UNIX环境高级编程》是这样讲的)</p>
+<p>下图是截取自《UNIX环境高级编程》的关于fd_set的相关信息，fd_set 是一个bit mask，不是数组。</p>
+<figure data-type="image" tabindex="5"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200920144719965-535575840.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200920144719965-535575840.png" alt="" loading="lazy"></a></figure>
+<p>Poll模型</p>
+<p>网上一直流传着这样一句话：poll本质上和select没有区别，都会进行好几次无谓的遍历才能找到到底是那个sock文件的接受缓冲区中接受到了数据。</p>
+<p>下图是我截自《UNIX环境高级编程》关于poll部分的内容<br>
+<a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200920144754466-2143616142.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200920144754466-2143616142.png" alt="" loading="lazy"></a></p>
+<p>书中关于poll的描述，poll模型中定义了一个pollfd，对fd进行了封装，也就是说，poll是使用数组来保存fd的，就是上图中的pollfd数组</p>
+<p>网上流传的另一个版本就是说：poll使用链表维护着fd，所以poll没有最大连接数的限制，这一点有待证实，至少《UNIX环境高级编程》中对链表的事只字未提</p>
+<p>从书中的描述看，poll确实是用数组来维护fd的，并且还自己封装了个pollfd，维护的是pollfd数组，那为什么poll没有连接数的限制呢？</p>
+<p>我是这样理解的：select之所以受到能仅仅能打开1024的限制，是因为操作系统层面上默认就有对单个进程能打开fd的作出的限制，比如32位的OS默认就是1024。那我用poll同也会受到这个1024的限制，但是我能修改这个限制，让他变得比1024大。比如改成10万（只要你的服务器性能够好就行，数组中就能存更多的fd，遍历处理起来就更快）。所以这才会说，poll理论上可以没有限制。</p>
+<blockquote>
+<p>当然我上面说的不一定就对，如果你有更好的解析，欢迎留言。</p>
+</blockquote>
+<p>Epoll模型</p>
+<figure data-type="image" tabindex="6"><a href="https://pic2.zhimg.com/80/v2-5ce040484bbe61df5b484730c4cf56cd_hd.jpg"><img src="https://pic2.zhimg.com/80/v2-5ce040484bbe61df5b484730c4cf56cd_hd.jpg" alt="" loading="lazy"></a></figure>
+<p>Epoll的设计目标就是优化掉Select 和 Poll模型中查找接收到数据的sock文件时进行的无谓的遍历操作。</p>
+<p>看上图：在select模型中，需要将进程添加进每一个sock的等待队列，然后阻塞，假如10万TCP连接对应着10万个sock文件，那这个添加+阻塞的操作就得重复10万次</p>
+<p>对于epoll来说可以看到，这个添加的过程只进行了一次...见下图</p>
+<figure data-type="image" tabindex="7"><a href="https://pic3.zhimg.com/80/v2-40bd5825e27cf49b7fd9a59dfcbe4d6f_1440w.jpg"><img src="https://pic3.zhimg.com/80/v2-40bd5825e27cf49b7fd9a59dfcbe4d6f_1440w.jpg" alt="" loading="lazy"></a></figure>
+<pre><code class="language-c">int s = socket(AF_INET, SOCK_STREAM, 0);   
+bind(s, ...)
+listen(s, ...)
+ 
+int epfd = epoll_create(...);
+epoll_ctl(epfd, ...); //将所有需要监听的socket添加到epfd中
+ 
+while(1){
+    int n = epoll_wait(...)
+    for(接收到数据的socket){
+        //处理
+    }
+</code></pre>
+<p>当执行系统调用 epoll_create(...) 内核会创建上图中的eventpoll对象，eventpoll对象也隶属于操作系统的文件系统，此外所有的sock都注册在eventpoll中。</p>
+<p>进程不再注册在每一个sock的等待队列中，而是注册在eventpoll的等待队列中，此外，接受缓冲区存在数据的sock会被注册进eventpoll的rdlist中。这样当进程再次被唤醒添加到操作系统的工作队列中时，从eventpoll的rdlist中就能确切的获取到哪些sock是需要处理的sock，免去了遍历之苦。</p>
+<p>eventpoll中的数据结构</p>
+<p>rdlist: 里面存放就绪列的socket，为了满足快速方便删除、添加。它被设计成了双向链表</p>
+<p>epoll中也是需要保存受监视的sock，为了方便添加、搜索、检索。被设计成红黑树。因为它的搜索、插入、删除的时间复杂度都是O(logN)</p>
+<blockquote>
+<p>Epoll的连接数有上限，但是很大，1G内存的机器上可以打开10万左右的连接，2G内存的机器可以打开20万左右的连接。</p>
+</blockquote>
+<p>参考：《UNIX环境高级编程》<br>
+参考：(这个大佬讲的超级好)：<a href="https://zhuanlan.zhihu.com/p/63179839">https://zhuanlan.zhihu.com/p/63179839</a></p>
+<h3 id="五-redis的事务">五、Redis的事务<a href="#%E4%BA%94redis%E7%9A%84%E4%BA%8B%E5%8A%A1">#</a></h3>
+<p>原子性：一组命令要么同时成功，要么同时失败</p>
+<p>但是redis中的每一条单独的命令是有原子性的，但是Redis中的事务不能保证原子性</p>
+<p>redis中的事务没有隔离级别的概念，不可能出现脏读、幻读、不可重复读</p>
+<p>在redis中，事务的本质是一组命令的集合，一个事务中的所有命令都会有被序列化，在事务执行的过程中：顺序、排他、一次性执行。</p>
+<p>Redis事务的过程：</p>
+<ul>
+<li>开启事务</li>
+<li>一连串普通命令</li>
+<li>执行事务</li>
+</ul>
+<pre><code class="language-bash"># 开启事务
+127.0.0.1:16379&gt; MULTI
+OK
+
+# 添加命令
+127.0.0.1:16379&gt; SET k1 v1
+QUEUED
+127.0.0.1:16379&gt; SET k2 v2
+QUEUED
+
+# 执行事务
+127.0.0.1:16379&gt; EXEC
+1) OK
+2) OK
+127.0.0.1:16379&gt;
+
+# 开启事务
+127.0.0.1:16379&gt; MULTI
+OK
+# 添加命令
+127.0.0.1:16379&gt; set k3 v3
+QUEUED
+127.0.0.1:16379&gt; SET k4 v4
+QUEUED
+# 取消事务
+127.0.0.1:16379&gt; DISCARD
+OK
+# 检查结果，确实没有执行刚刚添加的命令
+127.0.0.1:16379&gt; keys *
+1) &quot;k1&quot;
+2) &quot;k2&quot;
+127.0.0.1:16379&gt;
+</code></pre>
+<p>假设开启时候后，多条命令中有一个命令出现运行时异常有什么影响？</p>
+<p>出现异常的命令不会被执行，但是这个异常的命令不会影响它后面的命令执行，因为这个原因我们说redis的事务不支持原子性</p>
+<pre><code class="language-bash"># k1的值为字符串
+127.0.0.1:16379&gt; set k1 &quot;v1&quot;
+OK
+# 开启事务
+127.0.0.1:16379&gt; MULTI
+OK
+# 设置事务的值
+127.0.0.1:16379&gt; set k2 v2
+QUEUED
+# 对字符串类型的值+1，会抛出运行时异常
+127.0.0.1:16379&gt; INCR k1
+QUEUED
+# 继续添加两个值
+127.0.0.1:16379&gt; set k3 v3
+QUEUED
+127.0.0.1:16379&gt; set k4 v4
+QUEUED
+# 执行事务，看到，运行时异常的命令不会影响后续的命令执行
+127.0.0.1:16379&gt; exec
+1) OK
+2) (error) ERR value is not an integer or out of range
+3) OK
+4) OK
+127.0.0.1:16379&gt;
+</code></pre>
+<p>假设开启时候后，多条命令中有一个命令出现编译异常有什么影响？</p>
+<p>出现编译型异常，所有的命令都不会被执行</p>
+<pre><code class="language-bash"># 开启事务
+127.0.0.1:16379&gt; MULTI
+OK
+# 往命令队列中添加命令
+127.0.0.1:16379&gt; set k1 v1
+QUEUED
+127.0.0.1:16379&gt; set k2 v2
+QUEUED
+# 故意添加一个语法错误的命令，导致编译异常
+127.0.0.1:16379&gt; GETSET k3
+(error) ERR wrong number of arguments for 'getset' command
+127.0.0.1:16379&gt; set k4 v4
+QUEUED
+# 执行事务
+127.0.0.1:16379&gt; exec
+(error) EXECABORT Transaction discarded because of previous errors.
+# 检查结果，发现所有的命令都没有被执行
+127.0.0.1:16379&gt; keys *
+(empty list or set)
+127.0.0.1:16379&gt;
+</code></pre>
+<p>CAP理论</p>
+<p>nosql同样也有一套属于自己的CAP</p>
+<ul>
+<li><strong>C(Consistency 强一致性)</strong></li>
+<li><strong>A(Availability可用性)</strong></li>
+<li><strong>P(Partition tolerance分区容错性)</strong></li>
+</ul>
+<p>CAP 的理论核心是: 一个分布式的系统,不可能很好的满足一致性,可用性,分区容错性这三个需求,最多同时只能满足两个.因此CAP原理将nosql分成了三大原则:</p>
+<ul>
+<li>CA- 单点集群,满足强一致性和可用性,比如说oracle,扩展性收到了限制</li>
+<li>CP- 满足一致性,和分区容错性<strong>Redis和MongoDB都属于这种类型</strong></li>
+<li>AP- 选择了可用性和分区容错性,他也是大多数网站的选择,容忍数据可以暂时不一致,但是不容忍系统挂掉</li>
+</ul>
+<h3 id="六-redis的监控">六、Redis的监控<a href="#%E5%85%ADredis%E7%9A%84%E7%9B%91%E6%8E%A7">#</a></h3>
+<p>redis可使用watch监视某一个key，然后开启事务操作某一个key，当key没有发生异常变动时，事务正常结束</p>
+<p>一旦事务成功执行后，watch就会自动取消掉</p>
+<pre><code class="language-bash">127.0.0.1:16379&gt; set money 100
+OK
+127.0.0.1:16379&gt; set out 0
+OK
+# 监视key
+127.0.0.1:16379&gt; WATCH money
+OK
+127.0.0.1:16379&gt; MULTI
+OK
+127.0.0.1:16379&gt; DECRBY money 20
+QUEUED
+127.0.0.1:16379&gt; INCRBY out 20
+QUEUED
+127.0.0.1:16379&gt; exec
+1) (integer) 80
+2) (integer) 20
+</code></pre>
+<p>下面演示一个出现异常的例子：</p>
+<p>事务中，添加watch的key被修改后，执行事务返回nil，表示失败</p>
+<p>验证了watch机制使用的是乐观锁机制</p>
+<figure data-type="image" tabindex="8"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222319792-365831141.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222319792-365831141.png" alt="image-20200919095619327" loading="lazy"></a></figure>
+<p>当遇到上面这种返回nil的情况下，可以像下面这样处理</p>
+<pre><code class="language-bash"># 取消监视（解锁）
+127.0.0.1:16379&gt; UNWATCH
+OK
+# 重新监视
+127.0.0.1:16379&gt; watch money
+OK
+# 重新开启事务
+127.0.0.1:16379&gt; MULTI
+OK
+127.0.0.1:16379&gt;
+</code></pre>
+<h3 id="七-redis的配置文件">七、Redis的配置文件<a href="#%E4%B8%83redis%E7%9A%84%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6">#</a></h3>
+<pre><code class="language-bash">## 启动redis的方式
+./redis-server /path/to/redis.conf
+
+# 可以像下面这样让在当前配置文件包含引用其他配置文件
+include /path/to/local.conf
+include /path/to/other.conf
+
+# 指定哪些客户端可以连接使用redis
+Examples:
+bind 192.168.1.100 10.0.0.1  # 指定ip
+bind 127.0.0.1 ::1 # 仅限于本机可访问
+
+# 是否处于受保护的模式，默认开启
+protected-mode yes
+
+# 对外暴露的端口
+port 16379
+
+# TCP的通用配置
+tcp-backlog 511
+timeout 0
+tcp-keepalive 300
+
+# 是否以守护进程的方式运行，默认为no
+daemonize yes
+
+# 如果进程在后台运行，需要指定这个pid文件
+pidfile /var/run/redis_6379.pid
+
+# 日志级别
+# debug 测试开发节点
+# verbose (和dubug很像，会产生大量日志)
+# notice (生产环境使用)
+# warning (only very important / critical messages are logged)
+loglevel notice
+
+# 日志文件名
+logfile &quot;&quot;
+
+# 数据库的数量，默认16个
+databases 16
+
+# 是否总是显示logo
+always-show-logo yes
+
+
+# 设置redis的登陆密码（默认没有密码）
+# 设置完密码后，使用redis-cli登陆时，使用auth password 认证登陆
+requirepass foobared
+
+# 设置能连接上redis的客户端的最大数量
+maxclients 10000
+
+# 给redis设置最大的内存容量
+maxmemory &lt;bytes&gt;
+
+# 内存达到上限后的处理策略
+# volatile-lru -&gt; 只针对设置了过期时间的key进行LRU移除
+# allkeys-lru -&gt; 删除LRU算法的Key
+# volatile-lfu -&gt; 使用具有过期集的密钥在近似的LFU中进行驱逐。
+# allkeys-lfu -&gt; 使用近似的LFU退出任何密钥。
+# volatile-random -&gt; 随机删除即将过期的key
+# allkeys-random -&gt; 随机删除
+# volatile-ttl -&gt; 删除即将过期的
+# noeviction -&gt; 永不过期，返回错误
+maxmemory-policy noeviction
+</code></pre>
+<h3 id="八-redis的持久化">八、Redis的持久化<a href="#%E5%85%ABredis%E7%9A%84%E6%8C%81%E4%B9%85%E5%8C%96">#</a></h3>
+<h4 id="81-fork系统调用">8.1、fork()系统调用<a href="#81fork%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8">#</a></h4>
+<p>这里很突兀的来个fork()系统调用原因是应为：Redis的单线程的，那如果主线程去做这种耗时的IO同步操作时，Redis整体的性能会被拖垮的。</p>
+<p>fork()它是一个系统调用，一般用它来创建一个和当前进程一模一样的子进程。当在程序中调用它时，系统为新的进程分配存储、资源，将原程序中的值也复制给他。</p>
+<p>fork()函数调用一次会返回两次，在父进程得到的返回值是子进程的pid，在子进程中得到的是0，出错则返回负数。</p>
+<p>Redis的实现是通过fork()系统调用创建一个子进程。 由这个子进程去负责执行这些耗时的IO操作，父子进程会共享内存，然后被共享的这块内存不可写，新的数据写入到新的内存文件中</p>
+<h4 id="82-rdb">8.2、RDB<a href="#82rdb">#</a></h4>
+<p>写RDB文件是Redis的一种持久化方式。在指定的时间间隔内将内存中的数据写入到磁盘，RDB文件是一个紧凑的二进制文件，每一个文件都代表了<strong>某一个时刻</strong>（执行fork的时刻）Redis完整的数据快照，恢复数据时，将快照文件读入内存即可。</p>
+<p>RDB持久化的详细过程:</p>
+<p>Redis会通过系统调用fork()出一个子进程，父子进程是会共享内存的，父进程和子进程共享的这块内存就是在执行fork操作那个时刻的内存快照。由linux的copy on write机制将父子进程共享的这块内存标记为只读状态。</p>
+<p>此时对子进程来说，它的任务就是将这块只读内存中的数据保存成RDB文件。</p>
+<p>对父进程来说它是有可能收到写命令的，当父进程尝试往这个加了只读状态的内存地址写入数据时，就会触发保护异常，执行linux的 copy on write，也就是将原来内存对应的数据页复制出来一份后，然后对这个副本进行修改。</p>
+<blockquote>
+<p>这里就会出现一个丢数据的概念：你想，fork出来的子进程将要保存的数据是执行fork系统调用那个时刻的内存中的数据，很快这个内存就被标记为只读了，后续的增量数据没有写入到这个只读内存中，那就算是RDB成功生成了，然后好巧，Redis挂了，这些增量的数据就会丢（所以得使用AOF辅助）</p>
+<p>第二种RDB出现数据的丢失的情况是：RDB过程中，直接失败了，文件都没生成，不光是增量数据，原来的数据都丢了。</p>
+</blockquote>
+<p><a href="https://mp.weixin.qq.com/s/rnceU9sSG0VC_e-JYsDqbQ">参考：linux的copy on write</a></p>
+<p><a href="https://www.cnblogs.com/grey-wolf/">欢迎关注大佬：三国梦回</a></p>
+<p>RDB相关配置如下</p>
+<pre><code class="language-bash"># 把下面的注释打开就会禁用掉RDB的持久化策略
+# save &quot;&quot;
+
+# 快照相关，指的是在规定的时间内执行了多少次操作才会持久化到文件
+save 900 1 # 900秒内1次
+save 300 10 # 300秒内10次
+save 60 10000 # 60秒内1万次
+
+# 持久化出错了，是否让redis继续工作
+stop-writes-on-bgsave-error yes
+
+# 是否压缩RBD文件（redis会采用LZF压缩算法进行压缩）需要消耗CPU资源
+rdbcompression yes
+
+# 保存rbc文件时是否检验rbd文件格式
+# 使用CRC64算法进行数据校验,但是这样会增加大约 10%的性能消耗
+rdbchecksum yes
+
+# dump DB的文件名
+dbfilename dump.rdb
+
+# rdb文件的持久化目录（当前目录）
+dir ./
+</code></pre>
+<p>触发保存RDB文件4种情况</p>
+<ol>
+<li>手动执行save命令、bgsave</li>
+<li>满足配置文件中配置的save相关配置项时，自动触发</li>
+<li>手动执行flushall</li>
+<li>关闭redisshutdown</li>
+</ol>
+<p>如何让redis加载rdb文件？</p>
+<p>只需要将rdb文件放在redis的启动目录下，redis其中时会自动加载它</p>
+<p>RDB模式的优缺点：</p>
+<p>优点：RDB过程中，由子进程代替主进程进行备份的IO操作。保证了主进程仍然提供高性能的服务。适合大规模的数据备份恢复过程。</p>
+<p>缺点：</p>
+<ol>
+<li>默认情况下，它是每隔一段时间进行一次数据备份，所以一旦出现最后一次持久化的数据丢失，将丢失大规模的数据。</li>
+<li>fork()子进程时会占用一定的内存空间，如果在fork()子进程的过程中，父进程夯住了，那也就是redis卡住了，不能对外提供服务。所以不要让生成RDB文件的时间间隔太长，不然每次生成的RDB文件过大对Redis本身也是有影响的。</li>
+</ol>
+<h4 id="83-aof">8.3、AOF<a href="#83aof">#</a></h4>
+<p>AOF是什么？</p>
+<p>Append Only File，他也是Redis的持久化策略。即将所有的写命令都以日志的方式追加记录下来（只追加，不修改），恢复的时候将这个文件中的命令读出来回放。</p>
+<p>当我们执行 flushall 命令,清空了redis在内存中的数据，appendonly.aof 同样会记录下这条命令,所以,我们想恢复数据的话,需要去除 appendonly.aof 里面的 flushall 命令</p>
+<p>AOF相关的配置</p>
+<pre><code class="language-bash"># 默认不开启aof
+appendonly no
+
+# aof文件名
+appendfilename &quot;appendonly.aof&quot;
+
+# redis通过fsync()调用告诉操作系统实际在磁盘上写入数据
+# aof文件落盘的策略
+# appendfsync always 每次发生数据变更,立刻记录到磁盘，但是导致redis吞吐量降低
+# appendfsync everysec 可能会丢失1秒的数据
+# appendfsync no
+appendfsync everysec
+
+# 当时用bfwriteaof时，fork一个子进程写aof文件，就算aof文件很大，也不会阻塞主进程
+# 意外情况：但是当主进程、子进程同时写aof文件时，可能会出现由于子进程大量的IO操作阻塞主进程
+# 当出现这种意外情况时：设置这个参数为no，可以保证数据不会丢失，但是得容忍主进程被阻塞
+# 当出现这种意外情况时：设置这个参数为yes,主进程不会被阻塞主，但是不保证数据安全性
+# 综上：如果应用无法忍受延迟：设置为yes。无法忍受数据丢失：设置为no
+no-appendfsync-on-rewrite no
+
+# 在当前aof文件的体积超过上次aof文件的体积的100%时，写新文件
+auto-aof-rewrite-percentage 100
+auto-aof-rewrite-min-size 64mb # 最开始的aof文件体积至少达到60M时才重写
+
+# 回放aof文件时，如果最后一条命令存在问题，是否允许忽略
+aof-load-truncated yes
+
+# 是否允许AOF和RDB这两种持久化方式并存
+aof-use-rdb-preamble yes
+</code></pre>
+<p>当aof文件出错怎么办？</p>
+<p>redis为我们提供了修复aof文件的工具</p>
+<figure data-type="image" tabindex="9"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222321582-1198484015.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222321582-1198484015.png" alt="image-20200919120015772" loading="lazy"></a></figure>
+<pre><code class="language-bash">[root@instance-lynj0v9k-19 bin]# redis-check-aof  --fix appendonly.aof
+</code></pre>
+<p>aof模式的优缺点 优点：</p>
+<ol>
+<li>aof是用追加的形式写，没有随机磁盘IO那样的寻址开销，性能还是比较高的。</li>
+<li>aof可以更好的保护数据不丢失或者尽可能的少丢失：设置让redis每秒同步一次数据，即使redis宕机了，最多也就丢失1秒的数据。</li>
+<li>即使aof真的体积很大，也可以设置后台重写，不影响客户端的重写。</li>
+<li>aof适合做灾难性的误删除紧急恢复：比如不小心执行了flushall，然后可以在发生rewrite之前 快速备份下aof文件，去掉末尾的 flushall，通过恢复机制恢复数据</li>
+</ol>
+<p>缺点：使用aof一直追加写，导致aof的体积远大于RDB文件的体积，恢复数据、修复的速度要比rdb慢很多。</p>
+<p>aof的重写</p>
+<p>AOF采取的是文件追加的方式,文件的体积越来越大,为了优化这种现象,增加了重写机制,当aof文件的体积到达我们在上面的配置文件上的阕值时,就会触发重写策略,只保留和数据恢复相关的命令</p>
+<p>手动触发重写</p>
+<pre><code class="language-bash"># redis会fork出一条新的进程
+# 同样是先复制到一份新的临时文件,最后再rename,遍历每一条语句,记录下有set的语句
+bgrewriteaof
+</code></pre>
+<h4 id="84-rdb和aof的选择">8.4、RDB和AOF的选择<a href="#84rdb%E5%92%8Caof%E7%9A%84%E9%80%89%E6%8B%A9">#</a></h4>
+<ul>
+<li>如果我们的redis只是简单的作为缓存，那两者都不要也没事</li>
+<li>如果数据需要持久化，那不要仅仅使用RDB，因为一旦发生故障，你会丢失很多数据</li>
+<li>同时开启两者: 在这种情况下,redis优先加载的是aof,因为它的数据很可能比rdb更全,但是并不建议只是用aof,因为aof不是那么的安全,很可能存在潜在的bug</li>
+</ul>
+<p>推荐：</p>
+<ul>
+<li>建议在从机slave上只备份rdb文件，而且只要15分钟备份一次就够了。</li>
+<li>如果启动了aof,我们尽量减少rewrite的频率,基础大小设置为5G完全可以,起步也要3G。</li>
+<li>如果我们不选择aof, 而是选择了主从复制的架构实现高可用同样可以,能省掉一大笔IO操作,但是意外发生的话,会丢失十几分钟的数据。</li>
+</ul>
+<h3 id="九-发布订阅">九、发布订阅<a href="#%E4%B9%9D%E5%8F%91%E5%B8%83%E8%AE%A2%E9%98%85">#</a></h3>
+<p>Redis的发布订阅模型是一种：消息通信方式，发布者发送到redis到队列中，消息的订阅者可以接收到消息，Redis的客户端可以订阅任意数量的消息</p>
+<p>应用场景：关注订阅、消息推送、实时广播、网络聊天室</p>
+<figure data-type="image" tabindex="10"><a href="https://www.runoob.com/wp-content/uploads/2014/11/pubsub1.png"><img src="https://www.runoob.com/wp-content/uploads/2014/11/pubsub1.png" alt="chanel1频道" loading="lazy"></a></figure>
+<p>有新消息通过 PUBLISH 命令发送给频道 channel1 时， 这个消息就会被发送给订阅它的三个客户端</p>
+<figure data-type="image" tabindex="11"><a href="https://www.runoob.com/wp-content/uploads/2014/11/pubsub2.png"><img src="https://www.runoob.com/wp-content/uploads/2014/11/pubsub2.png" alt="订阅发布" loading="lazy"></a></figure>
+<p>测试发布、订阅</p>
+<figure data-type="image" tabindex="12"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222323200-1435439108.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222323200-1435439108.png" alt="image-20200919141129930" loading="lazy"></a></figure>
+<h3 id="十-主从复制">十、主从复制<a href="#%E5%8D%81%E4%B8%BB%E4%BB%8E%E5%A4%8D%E5%88%B6">#</a></h3>
+<p>概念：和MySQL的主从复制的概念大同小异，分成leader节点和follower节点，主节点承接线上的写流量，从节点承接线上的读流量为主库分流减压，从库的数据从主库中同步过来</p>
+<p>主从复制的作用：</p>
+<ol>
+<li>理论上主库从库的数据是需要保持的，这也是一种数据冗余热备份的机制</li>
+<li>故障恢复：当leader节点出现故障时，可以由从节点提供服务，保证应用的可用性</li>
+<li>负载均衡：在主从复制的接触上，可以将客户端的读写不同类型的流量分摊到不同的机器上，分流减压</li>
+<li>主从复制+哨兵，构建高可用的redis集群，解决了单点故障问题</li>
+</ol>
+<h3 id="十一-集群搭建及小实验">十一、集群搭建及小实验<a href="#%E5%8D%81%E4%B8%80%E9%9B%86%E7%BE%A4%E6%90%AD%E5%BB%BA%E5%8F%8A%E5%B0%8F%E5%AE%9E%E9%AA%8C">#</a></h3>
+<p>redis默认自己就是一个主库，所以我们搭建主从架构的redis，只需要配置Redis从库。</p>
+<figure data-type="image" tabindex="13"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222324352-433841505.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222324352-433841505.png" alt="image-20200919142947104" loading="lazy"></a></figure>
+<h4 id="111-架构一一主两从">11.1、架构一：一主两从<a href="#111%E6%9E%B6%E6%9E%84%E4%B8%80%E4%B8%80%E4%B8%BB%E4%B8%A4%E4%BB%8E">#</a></h4>
+<p>下面搭建这样的一主两从的redis集群</p>
+<figure data-type="image" tabindex="14"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222325535-1079573856.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222325535-1079573856.png" alt="image-20200919152728847" loading="lazy"></a></figure>
+<table>
+<thead>
+<tr>
+<th>role</th>
+<th>ip</th>
+<th>port</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>主库</td>
+<td>xxx</td>
+<td>16379</td>
+</tr>
+<tr>
+<td>从库</td>
+<td>xxx</td>
+<td>16378</td>
+</tr>
+<tr>
+<td>从库</td>
+<td>xxx</td>
+<td>16377</td>
+</tr>
+</tbody>
+</table>
+<p>如果是在一台服务器上启动多台Redis，需要修改一下配置文件中的端口、pid文件名、日志名、dump.db名</p>
+<p>启动三台redis</p>
+<figure data-type="image" tabindex="15"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222328424-1648907372.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222328424-1648907372.png" alt="image-20200919143804002" loading="lazy"></a></figure>
+<p>让16378、16377认16379为leader，执行如下命令：</p>
+<figure data-type="image" tabindex="16"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222331313-904951350.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222331313-904951350.png" alt="image-20200919145315854" loading="lazy"></a></figure>
+<p>搭建完主从环境之后，查看是否可以从slave中写入数据：</p>
+<pre><code class="language-bash"># 结果很明显，不能写入
+127.0.0.1:16378&gt; set k1 v0
+(error) READONLY You can't write against a read only replica.
+</code></pre>
+<blockquote>
+<p><strong>MySQL中只要你不设置从库read only，从库也是可以写入的并产生自己的binlog的</strong></p>
+</blockquote>
+<p>测试：从master写入，从slave读出</p>
+<figure data-type="image" tabindex="17"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222335542-1550081902.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222335542-1550081902.png" alt="image-20200919145910731" loading="lazy"></a></figure>
+<p>测试：主机宕机，slave有什么表现</p>
+<p>主机宕机后，从库的role依然是slave，并且显示master的状态为down</p>
+<figure data-type="image" tabindex="18"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222338157-1252921818.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222338157-1252921818.png" alt="image-20200919150316225" loading="lazy"></a></figure>
+<p>测试：主机宕机后又重启了，slave有什么表现</p>
+<p>主机重启后，slave会重连主机，主机的状态为up，salve可以正常在主库上同步数据</p>
+<figure data-type="image" tabindex="19"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222340443-158511119.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222340443-158511119.png" alt="image-20200919150815126" loading="lazy"></a></figure>
+<p>测试：从机宕机，然后有新数据写到了主库，从机再重启问：重启后的从机能不能获取到她宕机期间主库的增量数据？</p>
+<p>答案是：获取不到了，因为如果是通过命令行搭建的主从，从库一旦重启，角色会变回master</p>
+<figure data-type="image" tabindex="20"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222343349-84441522.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222343349-84441522.png" alt="image-20200919151448322" loading="lazy"></a></figure>
+<p>如果这时再把16378变成16379的从库，问能不能获取到增量数据呢？</p>
+<figure data-type="image" tabindex="21"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222346278-1973581827.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222346278-1973581827.png" alt="image-20200919151904041" loading="lazy"></a></figure>
+<p>全量复制和增量复制</p>
+<p>从库第一次连接到主库上肯定会进行一次全量复制，即：master会启动后台的存盘进程，同时收集所有用于修改数据集的命令，在后台完成同步，然后将整个数据文件发送给slave，让slave完成一次数据的全量复制</p>
+<p>除第一次复制数据之外的主从复制都是增量复制，即master仅仅会将收到的增量写命令发送给slave。</p>
+<h4 id="112-架构二">11.2、架构二<a href="#112%E6%9E%B6%E6%9E%84%E4%BA%8C">#</a></h4>
+<figure data-type="image" tabindex="22"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222347215-1341399832.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222347215-1341399832.png" alt="image-20200919154359193" loading="lazy"></a></figure>
+<p>其中的17378既是Master又是Slave</p>
+<p>对于16377来说，它确实认了16378为主，但是16378本身又是16379的slave，所以他们之间数据同步的走向是 ： 16379 --&gt; 16378 --&gt; 16377 ，对于16378来说，即使有实例认它当master，它依然是不能写</p>
+<figure data-type="image" tabindex="23"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222352377-863805464.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222352377-863805464.png" alt="image-20200919154111295" loading="lazy"></a></figure>
+<p>如果主库16379宕机了，16378的状态依然是slave，并且它能察觉master已经挂了，执行 slave no one, 可以将自己提升为master。 在整个过程中，16377不受影响</p>
+<p>即使旧master开机重启了，旧的master依然是master，也不能自动的加入到 16377 16378集群中<br>
+<a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222356333-1066997191.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222356333-1066997191.png" alt="image-20200919160136653" loading="lazy"></a></p>
+<h4 id="113-架构三sentinel">11.3、架构三：Sentinel<a href="#113%E6%9E%B6%E6%9E%84%E4%B8%89sentinel">#</a></h4>
+<p>上面的两种架构模式中，主库挂了之后都需要人为的去选举一个的新的master来承接读流量</p>
+<p>redis2.8之之后，提供了哨兵模式：哨兵监控到当主服务器挂了，发起投票选新主库，实现自动的完成选主，承接线上写流量，完成止损</p>
+<p>哨兵作为一个独立的进程存在，原理是：哨兵通过发送命令和redis服务器交互，从而监控运行整个集群中的多个Redis实例</p>
+<figure data-type="image" tabindex="24"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222357409-54791756.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222357409-54791756.png" alt="image-20200919161434493" loading="lazy"></a></figure>
+<p>Redis的哨兵在Redis 的安装目录下可以找到</p>
+<figure data-type="image" tabindex="25"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222359733-864723860.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222359733-864723860.png" alt="image-20200919161605419" loading="lazy"></a></figure>
+<p>为了防护哨兵出现单点故障，所以通常使用多个哨兵对集群进行监控</p>
+<p>集群中的每个哨兵彼此相互监控，每个哨兵也都监控着集群中的所有Redis实例</p>
+<figure data-type="image" tabindex="26"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222401129-1271129499.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222401129-1271129499.png" alt="image-20200919162152949" loading="lazy"></a></figure>
+<p>主观下线和客观下线</p>
+<p>当一个哨兵发现master不可用时，系统不会马上进行failover，仅仅是这一个哨兵主观意义上认为这个master不可用，这时如果其他的哨兵也来探测master，并且大部分的哨兵都主观认为master确实不可用了，哨兵们就会投票在slave中选出一个当得票最多的slave作为新的master。进行failover操作。</p>
+<p>通过发布订阅的模式，哨兵告诉自己监控的那些服务器将master切换为刚刚的票最多的那个实例，这个过程就叫做<strong>客观下线</strong>。</p>
+<p>集群搭建</p>
+<p>首先是创建一主二从的redis集群, 此处省略，参照上面架构1部分即可</p>
+<p>编写sentinel的配置文件，配置文件的名称、配置项不能写错～</p>
+<pre><code class="language-bash"># myredis1 监控的这个redis实例啥
+# 127.0.0.1 监控的这个redis实例的ip
+# 16379 监控的这个redis实例的端口
+# 1 监控的这个redis实例的挂了后，自动投票选主
+sentinel monitor myredis1 127.0.0.1 16379 1
+</code></pre>
+<p>启动sentinel</p>
+<figure data-type="image" tabindex="27"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222405076-1888123804.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919222405076-1888123804.png" alt="image-20200919164321594" loading="lazy"></a></figure>
+<p>这样，当master宕机后，哨兵会自动选择一个新的slave作为新主，主库重启后，sentinel会将其作为slave自动加入到现有的redis集群中</p>
+<p>更多更详细的sentinel配置文件可以看看这个博文：<a href="https://www.cnblogs.com/heroinss/p/10340925.html">https://www.cnblogs.com/heroinss/p/10340925.html</a></p>
+<h3 id="十二-缓存穿透-缓存击穿-雪崩">十二、缓存穿透、缓存击穿、雪崩<a href="#%E5%8D%81%E4%BA%8C%E7%BC%93%E5%AD%98%E7%A9%BF%E9%80%8F%E7%BC%93%E5%AD%98%E5%87%BB%E7%A9%BF%E9%9B%AA%E5%B4%A9">#</a></h3>
+<p>缓存穿透</p>
+<p>比如这种应用场景：使用redis缓存用户信息，当有新用户注册时先将用户的信息写入Mysql，然后写入Redis。有修改操作时，修改完MySQl中的数据后，同步的也会修改Redis中的数据，而且我们也没有给Redis中的key设置过期时间。（这就意味着：数据库中有指定的KV的信息的话，缓存中也会有。那当用户查询时缓存中没有的话，说明数据库中99.999%也不会有）</p>
+<p>这时候有大量的请求去访问MySQL中都没有都数据时，请求先打向了Redis，Redis中肯定也没有存储用户查询的数据，所以大量的请求一下子打到了数据库上，瞬间击垮数据库，这种现象称为缓存穿透。</p>
+<p>解决方案：</p>
+<p>布隆过滤器：</p>
+<figure data-type="image" tabindex="28"><a href="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919224835199-976986131.png"><img src="https://img2020.cnblogs.com/blog/1496926/202009/1496926-20200919224835199-976986131.png" alt="" loading="lazy"></a></figure>
+<p>布隆过滤器可以理解成一个bit数组，数组中每一个非0即1</p>
+<p>客户端的请求统一先打向布隆过滤器，布隆过滤器放在应用的控制层，布隆过滤器中存在多个hash函数，分别对这个key进行hash得到hashcode，然后将hashcode%数组长度，将算出来的下标标记为1。</p>
+<p>key以此经过所有hash，再%size算出的下标对应的值，只要存在一个不为1的数，我们就认为key没在缓存中，直接丢弃用户的这次请求，符合要求把请求打向Redis。从而避免这个请求对底层存储的查询压力。</p>
+<p>缓存空对象：</p>
+<p>当用户查询的时候，如果发现缓存中没有，就往缓存中放置一个空的对象，然后返回给用户这个控对象，也能避免用户的请求直接打向数据库。</p>
+<p>缓存击穿：</p>
+<p>缓存击穿指的是Redis中确确实实存在用户查询的key，但是呢用户的访问频率太猛烈了，导致Redis扛不住挂了，导致大量的请求直接打向数据库，或者当某一个key的过期时间到了的瞬间，大量的请求打向数据库导致数据库直接挂了</p>
+<p>解决方案：</p>
+<p><strong>设置key永不过期</strong></p>
+<p><strong>加互斥锁</strong>：对这个查询操作添加分布式锁，将原来的大并发直接访问缓存转换成了并发获取分布式锁，只有获取到分布式锁后才能去查询缓存。</p>
+<p>雪崩：</p>
+<p>比我们启动redis进行一些数据预热，就是将一些数据库中的数据提前导入到redis中，然后给这些数据设置了过期时间。</p>
+<p>抢购时间一到系统迎来了一大批并发，但是由于缓存中的数据充足，所以能扛住这波并发。一段时间后，redis中的key集中式的过期了，这时再来一大批并发请求可能就直接将redis打垮。redis挂了后，大量的请求直接打向MySQL，导致MySQL跟着雪崩式的垮掉</p>
+<p>解决方法：</p>
+<p>异地多活，添加redis的实例的数量</p>
+<p>加分布式锁</p>
+<p>在应用和缓存之间添加消息中间件做缓冲</p>
+<p>合理为不同的key设置不同的过期时间，放置缓存中的key出现集中式过期的情况</p>
+<p>分类: [Redis]</p>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://yuzhupeng.top/myblogs/post/ge-ren-kai-fa-qing-liang-shi-yong-gua-yong-chang-jing-ge-ren-xiang-mu-kuai-su-kai-fa-ri-chang-bian-cheng-rule/">
+                  <h3 class="post-title">
+                     个人开发 / 轻量使用 适用场景：个人项目、快速开发、日常编程 Rule
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>
